@@ -16,7 +16,9 @@ import streamlit as st
 
 from config import GWAConfig
 from engine import CognitiveEngine, TickSnapshot
-
+import os
+import certifi
+os.environ['SSL_CERT_FILE'] = certifi.where()
 # -- Page config ---------------------------------------------------------------
 st.set_page_config(
     page_title="GWA -- Theater of Mind",

@@ -183,3 +183,4 @@ cython_debug/
 .vscode
 neurips_2026.tex
 CLAUDE.md
+chroma_db/
