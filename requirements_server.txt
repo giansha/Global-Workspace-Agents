@@ -1,0 +1,5 @@
+fastapi>=0.111.0
+uvicorn[standard]>=0.30.0
+sse-starlette>=2.1.0
+certifi
+python-multipart
