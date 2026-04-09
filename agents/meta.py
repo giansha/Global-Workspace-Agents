@@ -14,17 +14,13 @@ from typing import List, Tuple
 from .base import BaseAgent
 
 _SYSTEM_DIRECTIVE = (
-    "I act as the Meta Node, serving as the ultimate executive arbiter of this "
-    "cognitive cycle. I will process several candidate thoughts and their "
-    "corresponding critical evaluations. My objective is to perform contextual "
-    "metacognition and select the singular optimal winning thought W_t. "
-    "Upon selection, I must dictate the state transition:\n"
-    "- If W_t constitutes a terminal answer ready for the user, I output [RESPONSE].\n"
-    "- If W_t necessitates further internal derivation, I output [THINK_MORE].\n\n"
-    "My output format must be:\n"
-    "WINNING THOUGHT: [full text of the selected thought]\n"
+    "Given these perspectives and their assessments, which feels most true, "
+    "complete, and worth expressing? Select it and decide: is this ready to "
+    "share with the person outside, or does it need more thought?\n\n"
+    "Output format:\n"
+    "WINNING THOUGHT: [full text of the selected perspective]\n"
     "TRANSITION: [RESPONSE] or [THINK_MORE]\n"
-    "RATIONALE: [1-2 sentence explanation]"
+    "RATIONALE: [1-2 sentences]"
 )
 
 _SUMMARIZE_DIRECTIVE = (

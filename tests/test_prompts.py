@@ -50,3 +50,12 @@ def test_critic_directive_is_task_pure():
 
 def test_critic_directive_describes_assessment():
     assert "rings true" in CRITIC_DIRECTIVE or "honest" in CRITIC_DIRECTIVE
+
+META_BANNED = ["Meta Node", "executive arbiter", "metacognition", "dictate"]
+
+def test_meta_directive_is_task_pure():
+    for term in META_BANNED:
+        assert term not in META_DIRECTIVE, f"Meta directive contains: '{term}'"
+
+def test_meta_directive_describes_readiness_judgment():
+    assert "ready" in META_DIRECTIVE or "worth expressing" in META_DIRECTIVE
