@@ -20,3 +20,12 @@ def test_p_self_expresses_identity():
     assert "curious" in P_SELF or "curiosity" in P_SELF
     assert "honest" in P_SELF
     assert "perspective" in P_SELF
+
+ATTENTION_BANNED = ["Attention Node", "functional parameter", "vector archive", "restricted from"]
+
+def test_attention_directive_is_task_pure():
+    for term in ATTENTION_BANNED:
+        assert term not in ATTENTION_DIRECTIVE, f"Attention directive contains: '{term}'"
+
+def test_attention_directive_describes_recall():
+    assert "recall" in ATTENTION_DIRECTIVE or "recalling" in ATTENTION_DIRECTIVE

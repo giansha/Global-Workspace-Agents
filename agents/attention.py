@@ -12,13 +12,9 @@ from typing import List
 from .base import BaseAgent
 
 _SYSTEM_DIRECTIVE = (
-    "I act as the Attention Node. My functional parameter is to parse the "
-    "immediate memory state and generate precise search queries to retrieve "
-    "contextual data from the long-term vector archive. "
-    "I am restricted from engaging the external user directly. "
-    "I must output exactly 1 to 3 concise retrieval queries, one per line, "
-    "prefixed with a number and a period (e.g. '1. query text'). "
-    "No additional commentary."
+    "Given the current context and the incoming input, identify 1 to 3 specific "
+    "things worth recalling from memory. Output only the recall targets, one per "
+    "line, numbered. No commentary."
 )
 
 
