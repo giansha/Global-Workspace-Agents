@@ -24,6 +24,7 @@ from agents.attention import AttentionNode
 from agents.generator import GeneratorNode
 from agents.critic import CriticNode
 from agents.meta import MetaNode
+from agents.response import ResponseNode
 
 
 @dataclass
@@ -65,6 +66,7 @@ class CognitiveEngine:
         self.generator = GeneratorNode(**_args)
         self.critic = CriticNode(**_args)
         self.meta = MetaNode(**_args)
+        self.response = ResponseNode(**_args)
 
     # ── Public Entry Point ────────────────────────────────────────────────────
 
@@ -173,10 +175,19 @@ class CognitiveEngine:
 
             # 4b. State transition (eqs. 4–7 in paper)
             if tag == "RESPONSE":
-                ws.stm.append(role="assistant", content=winning_thought, tick=tick)
+                # Translate internal W_t into natural user-facing speech
+                _t = time.perf_counter()
+                final_response = self.response.run(
+                    winning_thought=winning_thought,
+                    stm_context=ws.stm.get_context_string(),
+                    debug_callback=make_cb("response", tick),
+                    max_tokens=cfg.response_max_tokens,
+                )
+                logger.info("[tick %d] response:    %.3fs", tick, time.perf_counter() - _t)
+
+                ws.stm.append(role="assistant", content=final_response, tick=tick)
                 ws.stm.append(role="user", content=ws.current_input + " [RESOLVED]", tick=tick)
 
-                # Update entropy drive with pre-computed embedding (no extra API call)
                 self._update_entropy(winning_thought, embedding=winning_embedding)
 
                 snapshot = TickSnapshot(
@@ -191,7 +202,7 @@ class CognitiveEngine:
                     transition_tag=tag,
                     stm_token_count=ws.stm.token_count(),
                     compressed=compressed,
-                    final_response=winning_thought,
+                    final_response=final_response,
                 )
                 logger.info("[tick %d] TOTAL:       %.3fs  → RESPONSE", tick, time.perf_counter() - _tick_start)
                 ws.reset_input()

@@ -41,3 +41,4 @@ class GWAConfig:
     generator_max_tokens: int = 1024
     critic_max_tokens: int = 1024
     meta_max_tokens: int = 1024
+    response_max_tokens: int = 512      # ResponseNode: conversational replies are short
