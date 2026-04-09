@@ -68,6 +68,8 @@ class ConfigPayload(BaseModel):
     critic_max_tokens: int = 1024
     meta_max_tokens: int = 1024
     response_max_tokens: int = 512
+    idle_interval: float = 30.0
+    idle_enabled: bool = False
 
 
 class ChatRequest(BaseModel):

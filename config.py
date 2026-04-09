@@ -42,3 +42,7 @@ class GWAConfig:
     critic_max_tokens: int = 1024
     meta_max_tokens: int = 1024
     response_max_tokens: int = 512      # ResponseNode: conversational replies are short
+
+    # ── Idle autonomous ticking ──────────────────────────────────────────────
+    idle_interval: float = 30.0   # seconds between idle tick cycles
+    idle_enabled: bool = False    # whether idle mode starts active on init
