@@ -43,6 +43,12 @@ _engine: Optional[CognitiveEngine] = None
 _config: GWAConfig = GWAConfig()
 _engine_lock = threading.Lock()
 
+_idle_enabled: bool = False
+_idle_subscribers: list[asyncio.Queue] = []
+_idle_subscribers_lock = threading.Lock()
+
+IDLE_PROMPT = "No one is speaking to me right now. I can continue thinking on my own, or reach out and say something to the user."
+
 
 # ── Pydantic models ──────────────────────────────────────────────────────────
 class ConfigPayload(BaseModel):
@@ -77,6 +83,61 @@ class ChatRequest(BaseModel):
     debug: bool = False
 
 
+def _idle_broadcast(event_type: str, data: dict | None, loop: asyncio.AbstractEventLoop):
+    """Push an SSE event to all connected /api/idle-stream clients."""
+    with _idle_subscribers_lock:
+        dead = []
+        for q in _idle_subscribers:
+            try:
+                asyncio.run_coroutine_threadsafe(q.put((event_type, data)), loop)
+            except Exception:
+                dead.append(q)
+        for q in dead:
+            _idle_subscribers.remove(q)
+
+
+def _idle_scheduler_loop():
+    """Background daemon: fires idle ticks on a timer."""
+    import time
+    while True:
+        # Sleep first so initial startup doesn't immediately fire
+        cfg_interval = _config.idle_interval if _config else 30.0
+        time.sleep(cfg_interval)
+
+        if not _idle_enabled or _engine is None:
+            continue
+
+        # Try to get the event loop for this thread
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            continue
+
+        if not _engine_lock.acquire(blocking=True, timeout=cfg_interval):
+            continue  # engine still busy after one full interval, skip this cycle
+
+        try:
+            for snap in _engine.run(
+                IDLE_PROMPT,
+                debug_callback=lambda agent, tick, token: _idle_broadcast(
+                    "debug", {"agent": agent, "tick": tick, "token": token}, loop
+                ),
+            ):
+                snap_dict = dataclasses.asdict(snap)
+                if snap.transition_tag == "RESPONSE":
+                    _idle_broadcast("tick", snap_dict, loop)
+                    _idle_broadcast("done", {"final_response": snap.final_response}, loop)
+                # THINK_MORE: winning_thought already in STM via engine; no broadcast
+        except Exception as e:
+            logging.getLogger("gwa.idle").exception("Idle tick error: %s", e)
+        finally:
+            _engine_lock.release()
+
+
+_idle_thread = threading.Thread(target=_idle_scheduler_loop, daemon=True, name="idle-scheduler")
+_idle_thread.start()
+
+
 # ── Routes ───────────────────────────────────────────────────────────────────
 
 @app.get("/api/health")
@@ -89,6 +150,8 @@ def set_config(payload: ConfigPayload):
     global _engine, _config
     _config = GWAConfig(**payload.model_dump())
     _engine = CognitiveEngine(_config)
+    global _idle_enabled
+    _idle_enabled = _config.idle_enabled
     return {"status": "initialized"}
 
 
@@ -110,6 +173,45 @@ def get_stats():
         "last_entropy": ws.entropy_drive.last_entropy,
         "last_T_gen": ws.entropy_drive.last_T_gen,
     }
+
+
+@app.get("/api/idle-stream")
+async def idle_stream():
+    """Persistent SSE stream for idle tick events."""
+    q: asyncio.Queue = asyncio.Queue()
+    with _idle_subscribers_lock:
+        _idle_subscribers.append(q)
+
+    async def generator():
+        try:
+            while True:
+                event_type, data = await q.get()
+                yield {
+                    "event": event_type,
+                    "data": json.dumps(data) if data is not None else "{}",
+                }
+        except asyncio.CancelledError:
+            pass
+        finally:
+            with _idle_subscribers_lock:
+                if q in _idle_subscribers:
+                    _idle_subscribers.remove(q)
+
+    return EventSourceResponse(generator())
+
+
+@app.post("/api/idle/enable")
+def idle_enable():
+    global _idle_enabled
+    _idle_enabled = True
+    return {"status": "idle_enabled"}
+
+
+@app.post("/api/idle/disable")
+def idle_disable():
+    global _idle_enabled
+    _idle_enabled = False
+    return {"status": "idle_disabled"}
 
 
 @app.post("/api/chat")
