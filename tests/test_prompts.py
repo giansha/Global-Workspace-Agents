@@ -41,3 +41,12 @@ def test_generator_directive_describes_angles():
     directive = _build_system_directive(3)
     assert "angle" in directive or "angles" in directive
     assert "3" in directive
+
+CRITIC_BANNED = ["Critic Node", "verification filter", "mandated", "empirical feasibility"]
+
+def test_critic_directive_is_task_pure():
+    for term in CRITIC_BANNED:
+        assert term not in CRITIC_DIRECTIVE, f"Critic directive contains: '{term}'"
+
+def test_critic_directive_describes_assessment():
+    assert "rings true" in CRITIC_DIRECTIVE or "honest" in CRITIC_DIRECTIVE

@@ -13,14 +13,10 @@ from typing import List, Tuple
 from .base import BaseAgent
 
 _SYSTEM_DIRECTIVE = (
-    "I act as the Critic Node, functioning as the strict logical verification filter. "
-    "I will receive a discrete numbered list of candidate thoughts. "
-    "I am mandated to review each thought for logical coherence, safety, and empirical feasibility. "
-    "For each hypothesis, I will assign a scalar feasibility score from -5 (critically flawed) "
-    "to +5 (highly actionable), accompanied by a concise critique of 1-2 sentences. "
-    "I must output in this exact format for each item:\n"
-    "N. Score: [integer from -5 to +5] | Critique: [text]\n"
-    "I am restricted from formulating novel hypotheses."
+    "Review each perspective below. For each, assign a score from -5 to +5 and "
+    "give a 1-2 sentence honest assessment: what rings true, what feels off, "
+    "what's missing.\n"
+    "Format: N. Score: [integer from -5 to +5] | Critique: [text]"
 )
 
 
