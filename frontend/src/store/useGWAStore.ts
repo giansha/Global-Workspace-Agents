@@ -36,6 +36,10 @@ interface GWAStore {
   debugEvents: DebugEvent[]
   appendDebugEvent: (e: DebugEvent) => void
   clearDebugEvents: () => void
+
+  // Idle mode
+  idleEnabled: boolean
+  setIdleEnabled: (v: boolean) => void
 }
 
 export const useGWAStore = create<GWAStore>((set) => ({
@@ -65,4 +69,7 @@ export const useGWAStore = create<GWAStore>((set) => ({
   debugEvents: [],
   appendDebugEvent: (e) => set((s) => ({ debugEvents: [...s.debugEvents, e] })),
   clearDebugEvents: () => set({ debugEvents: [] }),
+
+  idleEnabled: false,
+  setIdleEnabled: (v) => set({ idleEnabled: v }),
 }))
