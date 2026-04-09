@@ -15,7 +15,6 @@ export function useSSEChat() {
     addTurn,
     setError,
     appendDebugEvent,
-    clearDebugEvents,
   } = useGWAStore()
 
   const sendMessage = useCallback(
@@ -25,7 +24,6 @@ export function useSSEChat() {
       // the producer thread blocks on the lock; the user bubble should only
       // appear after the idle response (if any) has been committed.
       clearCurrentTicks()
-      clearDebugEvents()
       setStreaming(true)
       setError(null)
 
@@ -117,7 +115,7 @@ export function useSSEChat() {
         setStreaming(false)
       }
     },
-    [addTurn, appendDebugEvent, appendTick, clearCurrentTicks, clearDebugEvents, setError, setStreaming]
+    [addTurn, appendDebugEvent, appendTick, clearCurrentTicks, setError, setStreaming]
   )
 
   return { sendMessage }
