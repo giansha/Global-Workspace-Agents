@@ -70,7 +70,7 @@ class CognitiveEngine:
 
     # ── Public Entry Point ────────────────────────────────────────────────────
 
-    def run(self, user_input: str, debug_callback=None) -> Generator[TickSnapshot, None, None]:
+    def run(self, user_input: str, is_idle: bool = False, debug_callback=None) -> Generator[TickSnapshot, None, None]:
         """
         Process one user turn through up to max_ticks cognitive cycles.
 
@@ -180,14 +180,16 @@ class CognitiveEngine:
                 final_response = self.response.run(
                     winning_thought=winning_thought,
                     stm_context=ws.stm.get_context_string(),
-                    user_message=ws.current_input,
+                    user_message="" if is_idle else ws.current_input,
+                    default_language=cfg.default_language if is_idle else None,
                     debug_callback=make_cb("response", tick),
                     max_tokens=cfg.response_max_tokens,
                 )
                 logger.info("[tick %d] response:    %.3fs", tick, time.perf_counter() - _t)
 
                 ws.stm.append(role="Me", content=final_response, tick=tick)
-                ws.stm.append(role="user", content=ws.current_input + " [RESOLVED]", tick=tick)
+                if not is_idle:
+                    ws.stm.append(role="user", content=ws.current_input + " [RESOLVED]", tick=tick)
 
                 self._update_entropy(winning_thought, embedding=winning_embedding)
 

@@ -62,6 +62,22 @@ export function HyperSection({ config, onChange }: Props) {
         min={5} max={300} step={5}
         onChange={(e) => onChange({ idle_interval: Number(e.target.value) })}
       />
+      <div className="flex flex-col gap-1">
+        <label className="text-xs text-[var(--text-secondary)]">Idle response language</label>
+        <select
+          value={config.default_language}
+          onChange={(e) => onChange({ default_language: e.target.value })}
+          className="rounded border border-[var(--border)] bg-[var(--bg-secondary)] px-2 py-1 text-sm text-[var(--text-primary)]"
+        >
+          <option value="English">English</option>
+          <option value="Chinese">Chinese</option>
+          <option value="Japanese">Japanese</option>
+          <option value="French">French</option>
+          <option value="Spanish">Spanish</option>
+          <option value="German">German</option>
+          <option value="Korean">Korean</option>
+        </select>
+      </div>
 
       <p className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider pt-1">Max Tokens per Agent</p>
       <div className="grid grid-cols-2 gap-2">

@@ -77,6 +77,7 @@ class ConfigPayload(BaseModel):
     response_max_tokens: int = 512
     idle_interval: float = 30.0
     idle_enabled: bool = False
+    default_language: str = "English"
 
 
 class ChatRequest(BaseModel):
@@ -129,6 +130,7 @@ def _idle_scheduler_loop():
         try:
             for snap in _engine.run(
                 IDLE_PROMPT,
+                is_idle=True,
                 debug_callback=lambda agent, tick, token: _idle_broadcast(
                     "debug", {"agent": agent, "tick": tick, "token": token}, loop
                 ),
@@ -233,16 +235,6 @@ async def chat(req: ChatRequest):
             detail="Engine not initialized. POST /api/config first.",
         )
 
-    if not _engine_lock.acquire(blocking=False):
-        async def busy_gen():
-            yield {
-                "event": "error",
-                "data": json.dumps(
-                    {"message": "Engine is busy processing another request.", "code": "ENGINE_BUSY"}
-                ),
-            }
-        return EventSourceResponse(busy_gen())
-
     async def event_generator():
         _get_or_set_event_loop()
         q: asyncio.Queue = asyncio.Queue()
@@ -254,6 +246,7 @@ async def chat(req: ChatRequest):
             )
 
         def producer():
+            _engine_lock.acquire()  # blocking — waits if idle tick is running
             try:
                 for snap in _engine.run(
                     req.message,

@@ -26,13 +26,19 @@ class ResponseNode(BaseAgent):
         winning_thought: str,
         stm_context: str,
         user_message: str,
+        default_language: str | None = None,
         debug_callback=None,
         max_tokens: int = 512,
     ) -> str:
+        if user_message:
+            context_tail = f"Person's message: {user_message}"
+        else:
+            lang = default_language or "English"
+            context_tail = f"(No incoming message — you are initiating. Speak in {lang}.)"
         user_content = (
             f"Your internal thought:\n{winning_thought}\n\n"
             f"Conversation so far:\n{stm_context}\n\n"
-            f"Person's message: {user_message}"
+            f"{context_tail}"
         )
         return self.call(
             system_directive=_SYSTEM_DIRECTIVE,

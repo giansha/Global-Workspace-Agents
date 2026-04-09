@@ -46,3 +46,4 @@ class GWAConfig:
     # ── Idle autonomous ticking ──────────────────────────────────────────────
     idle_interval: float = 30.0   # seconds between idle tick cycles
     idle_enabled: bool = False    # whether idle mode starts active on init
+    default_language: str = "English"  # language for idle-initiated responses

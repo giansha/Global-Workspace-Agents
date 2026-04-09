@@ -38,6 +38,7 @@ export interface GWAConfig {
   response_max_tokens: number
   idle_interval: number
   idle_enabled: boolean
+  default_language: string
 }
 
 export interface WorkspaceStats {
@@ -87,4 +88,5 @@ export const DEFAULT_CONFIG: GWAConfig = {
   response_max_tokens: 512,
   idle_interval: 30,
   idle_enabled: false,
+  default_language: 'English',
 }
