@@ -46,6 +46,7 @@ _engine_lock = threading.Lock()
 _idle_enabled: bool = False
 _idle_subscribers: list[asyncio.Queue] = []
 _idle_subscribers_lock = threading.Lock()
+_event_loop: asyncio.AbstractEventLoop | None = None
 
 IDLE_PROMPT = "No one is speaking to me right now. I can continue thinking on my own, or reach out and say something to the user."
 
@@ -83,6 +84,17 @@ class ChatRequest(BaseModel):
     debug: bool = False
 
 
+def _get_or_set_event_loop() -> asyncio.AbstractEventLoop | None:
+    """Capture the running uvicorn event loop from an async context, store it once."""
+    global _event_loop
+    if _event_loop is None:
+        try:
+            _event_loop = asyncio.get_running_loop()
+        except RuntimeError:
+            pass
+    return _event_loop
+
+
 def _idle_broadcast(event_type: str, data: dict | None, loop: asyncio.AbstractEventLoop):
     """Push an SSE event to all connected /api/idle-stream clients."""
     with _idle_subscribers_lock:
@@ -107,11 +119,9 @@ def _idle_scheduler_loop():
         if not _idle_enabled or _engine is None:
             continue
 
-        # Try to get the event loop for this thread
-        try:
-            loop = asyncio.get_event_loop()
-        except RuntimeError:
-            continue
+        loop = _event_loop
+        if loop is None:
+            continue  # event loop not yet captured (no async request has arrived yet)
 
         if not _engine_lock.acquire(blocking=True, timeout=cfg_interval):
             continue  # engine still busy after one full interval, skip this cycle
@@ -183,6 +193,7 @@ async def idle_stream():
         _idle_subscribers.append(q)
 
     async def generator():
+        _get_or_set_event_loop()
         try:
             while True:
                 event_type, data = await q.get()
@@ -233,8 +244,9 @@ async def chat(req: ChatRequest):
         return EventSourceResponse(busy_gen())
 
     async def event_generator():
+        _get_or_set_event_loop()
         q: asyncio.Queue = asyncio.Queue()
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
         def debug_cb(agent: str, tick: int, token: str):
             asyncio.run_coroutine_threadsafe(
