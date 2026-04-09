@@ -1,7 +1,7 @@
 'use client'
 
 import { create } from 'zustand'
-import { ConversationTurn, GWAConfig, TickSnapshot, WorkspaceStats, DEFAULT_CONFIG } from '@/lib/types'
+import { ConversationTurn, DebugEvent, GWAConfig, TickSnapshot, WorkspaceStats, DEFAULT_CONFIG } from '@/lib/types'
 
 interface GWAStore {
   // Config & engine
@@ -29,6 +29,13 @@ interface GWAStore {
   // Error banner
   error: string | null
   setError: (e: string | null) => void
+
+  // Debug mode
+  debugMode: boolean
+  setDebugMode: (v: boolean) => void
+  debugEvents: DebugEvent[]
+  appendDebugEvent: (e: DebugEvent) => void
+  clearDebugEvents: () => void
 }
 
 export const useGWAStore = create<GWAStore>((set) => ({
@@ -52,4 +59,10 @@ export const useGWAStore = create<GWAStore>((set) => ({
 
   error: null,
   setError: (e) => set({ error: e }),
+
+  debugMode: false,
+  setDebugMode: (v) => set({ debugMode: v }),
+  debugEvents: [],
+  appendDebugEvent: (e) => set((s) => ({ debugEvents: [...s.debugEvents, e] })),
+  clearDebugEvents: () => set({ debugEvents: [] }),
 }))

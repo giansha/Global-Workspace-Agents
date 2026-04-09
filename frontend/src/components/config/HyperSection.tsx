@@ -2,6 +2,7 @@
 
 import { GWAConfig } from '@/lib/types'
 import { SliderField } from '@/components/ui/SliderField'
+import { TextField } from '@/components/ui/TextField'
 
 interface Props {
   config: GWAConfig
@@ -55,6 +56,38 @@ export function HyperSection({ config, onChange }: Props) {
         min={1} max={16} step={1}
         onChange={(e) => onChange({ max_ticks: Number(e.target.value) })}
       />
+
+      <p className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider pt-1">Max Tokens per Agent</p>
+      <div className="grid grid-cols-2 gap-2">
+        <TextField
+          label="Attention"
+          type="number"
+          min={1}
+          value={config.attention_max_tokens}
+          onChange={(e) => onChange({ attention_max_tokens: Number(e.target.value) })}
+        />
+        <TextField
+          label="Generator"
+          type="number"
+          min={1}
+          value={config.generator_max_tokens}
+          onChange={(e) => onChange({ generator_max_tokens: Number(e.target.value) })}
+        />
+        <TextField
+          label="Critic"
+          type="number"
+          min={1}
+          value={config.critic_max_tokens}
+          onChange={(e) => onChange({ critic_max_tokens: Number(e.target.value) })}
+        />
+        <TextField
+          label="Meta"
+          type="number"
+          min={1}
+          value={config.meta_max_tokens}
+          onChange={(e) => onChange({ meta_max_tokens: Number(e.target.value) })}
+        />
+      </div>
     </div>
   )
 }

@@ -32,15 +32,33 @@ class BaseAgent:
         user_content: str,
         temperature: float = 0.7,
         max_tokens: int = 2048,
+        token_callback=None,
     ) -> str:
         """
         Make a single LLM call.
 
         P_Self is automatically prepended to the system directive so that every
         agent retains the GWA identity invariant regardless of its role.
+
+        If token_callback is provided, the call uses streaming mode and invokes
+        token_callback(token: str) for each text chunk as it arrives.
         """
         system_prompt = P_SELF + system_directive
-        response = self._client.chat.completions.create(
+        if token_callback is None:
+            response = self._client.chat.completions.create(
+                model=self._model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_content},
+                ],
+                temperature=temperature,
+                max_tokens=max_tokens,
+            )
+            return response.choices[0].message.content or ""
+
+        # Streaming path: emit tokens via callback and return full text
+        parts: list[str] = []
+        stream = self._client.chat.completions.create(
             model=self._model,
             messages=[
                 {"role": "system", "content": system_prompt},
@@ -48,5 +66,11 @@ class BaseAgent:
             ],
             temperature=temperature,
             max_tokens=max_tokens,
+            stream=True,
         )
-        return response.choices[0].message.content or ""
+        for chunk in stream:
+            token = chunk.choices[0].delta.content if chunk.choices else None
+            if token:
+                parts.append(token)
+                token_callback(token)
+        return "".join(parts)

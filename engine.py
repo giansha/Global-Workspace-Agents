@@ -64,12 +64,18 @@ class CognitiveEngine:
 
     # ── Public Entry Point ────────────────────────────────────────────────────
 
-    def run(self, user_input: str) -> Generator[TickSnapshot, None, None]:
+    def run(self, user_input: str, debug_callback=None) -> Generator[TickSnapshot, None, None]:
         """
         Process one user turn through up to max_ticks cognitive cycles.
 
         Yields a TickSnapshot after each tick. The last snapshot in a turn
         has `transition_tag == "RESPONSE"` and carries `final_response`.
+
+        Parameters
+        ----------
+        debug_callback:  Optional callable(agent: str, tick: int, token: str).
+                         When provided, each agent streams tokens through this
+                         callback so the UI can display real-time agent output.
         """
         ws = self.workspace
         cfg = self.config
@@ -80,10 +86,20 @@ class CognitiveEngine:
             tick = ws.tick
             compressed = False
 
+            # Helper: build a per-agent, per-tick token callback
+            def make_cb(agent_name: str, tick_num: int):
+                if debug_callback is None:
+                    return None
+                def cb(token: str):
+                    debug_callback(agent_name, tick_num, token)
+                return cb
+
             # ── Phase 1: Perceive & Retrieve ─────────────────────────────────
             rag_queries = self.attention.run(
                 stm_context=ws.stm.get_context_string(),
                 current_input=ws.current_input,
+                debug_callback=make_cb("attention", tick),
+                max_tokens=cfg.attention_max_tokens,
             )
             rag_context = ws.ltm.retrieve_multi(rag_queries, top_k=cfg.top_k_rag)
             ws.rag_context = rag_context
@@ -99,11 +115,15 @@ class CognitiveEngine:
                 state_string=state_str,
                 T_gen=T_gen,
                 N=cfg.N,
+                debug_callback=make_cb("generator", tick),
+                max_tokens=cfg.generator_max_tokens,
             )
             evaluations = self.critic.run(
                 state_string=state_str,
                 candidates=candidates,
                 temperature=cfg.critic_temperature,
+                debug_callback=make_cb("critic", tick),
+                max_tokens=cfg.critic_max_tokens,
             )
 
             # ── Phase 3: Arbitrate ────────────────────────────────────────────
@@ -111,13 +131,15 @@ class CognitiveEngine:
                 state_string=state_str,
                 candidates=candidates,
                 evaluations=evaluations,
+                debug_callback=make_cb("meta", tick),
+                max_tokens=cfg.meta_max_tokens,
             )
 
             # ── Phase 4: Update ───────────────────────────────────────────────
             # 4a. Memory bifurcation if STM exceeds threshold θ
             if ws.stm.token_count() > cfg.theta:
                 summary = self.meta.summarize(ws.stm.get_context_string())
-                ws.ltm.store(ws.stm.get_context_string(), metadata={"type": "stm_archive", "tick": tick})
+                ws.ltm.store(ws.stm.get_context_string(), metadata={"type": "stm_archive", "tick": tick})# TODO:这里需要提取知识而不是直接存储原文
                 ws.stm.compress(summary)
                 compressed = True
 

@@ -1,9 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useGWAStore } from '@/store/useGWAStore'
 import { GWAConfig } from '@/lib/types'
-import { postConfig } from '@/lib/api'
+import { getConfig, postConfig } from '@/lib/api'
 import { ApiSection } from './ApiSection'
 import { HyperSection } from './HyperSection'
 import { WorkspaceStats } from './WorkspaceStats'
@@ -14,6 +14,10 @@ export function ConfigPanel() {
   const [localConfig, setLocalConfig] = useState<GWAConfig>(config)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+
+  useEffect(() => {
+    getConfig().then(setLocalConfig).catch(() => {/* backend not up yet, keep defaults */})
+  }, [])
 
   const handleChange = (patch: Partial<GWAConfig>) => {
     setLocalConfig((c) => ({ ...c, ...patch }))

@@ -44,6 +44,8 @@ class MetaNode(BaseAgent):
         state_string: str,
         candidates: List[str],
         evaluations: List[Tuple[int, str]],
+        debug_callback=None,
+        max_tokens: int = 1024,
     ) -> Tuple[str, str]:
         """
         Returns
@@ -65,7 +67,8 @@ class MetaNode(BaseAgent):
             system_directive=_SYSTEM_DIRECTIVE,
             user_content=user_content,
             temperature=0.3,
-            max_tokens=1024,
+            max_tokens=max_tokens,
+            token_callback=debug_callback,
         )
         return _parse_meta_output(raw, candidates)
 

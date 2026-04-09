@@ -14,6 +14,8 @@ export function useSSEChat() {
     clearCurrentTicks,
     addTurn,
     setError,
+    appendDebugEvent,
+    clearDebugEvents,
   } = useGWAStore()
 
   const sendMessage = useCallback(
@@ -21,6 +23,7 @@ export function useSSEChat() {
       // Add user turn immediately
       addTurn({ id: uuidv4(), role: 'user', content: message, ticks: [] })
       clearCurrentTicks()
+      clearDebugEvents()
       setStreaming(true)
       setError(null)
 
@@ -31,7 +34,7 @@ export function useSSEChat() {
         const response = await fetch(`${BASE}/api/chat`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message }),
+          body: JSON.stringify({ message, debug: true }),
         })
 
         if (!response.ok || !response.body) {
@@ -59,7 +62,9 @@ export function useSSEChat() {
               if (!raw) continue
               try {
                 const payload = JSON.parse(raw)
-                if (currentEvent === 'tick') {
+                if (currentEvent === 'debug') {
+                  appendDebugEvent(payload)
+                } else if (currentEvent === 'tick') {
                   const tick = payload as TickSnapshot
                   collectedTicks.push(tick)
                   appendTick(tick)
@@ -94,8 +99,7 @@ export function useSSEChat() {
         setStreaming(false)
       }
     },
-    [addTurn, appendTick, clearCurrentTicks, setError, setStreaming]
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [addTurn, appendDebugEvent, appendTick, clearCurrentTicks, clearDebugEvents, setError, setStreaming]
   )
 
   return { sendMessage }

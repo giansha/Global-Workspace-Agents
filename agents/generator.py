@@ -28,13 +28,14 @@ def _build_system_directive(N: int) -> str:
 class GeneratorNode(BaseAgent):
     """Produces N divergent candidate thoughts at a dynamically set temperature."""
 
-    def run(self, state_string: str, T_gen: float, N: int) -> List[str]:
+    def run(self, state_string: str, T_gen: float, N: int, debug_callback=None, max_tokens: int = 1024) -> List[str]:
         """
         Parameters
         ----------
-        state_string:  Full S_t = STM ∪ INPUT ∪ RAG context.
-        T_gen:         Dynamic temperature from EntropyDrive.
-        N:             Number of candidates to generate.
+        state_string:    Full S_t = STM ∪ INPUT ∪ RAG context.
+        T_gen:           Dynamic temperature from EntropyDrive.
+        N:               Number of candidates to generate.
+        debug_callback:  Optional callable(token: str) for streaming debug output.
 
         Returns
         -------
@@ -48,7 +49,8 @@ class GeneratorNode(BaseAgent):
             system_directive=_build_system_directive(N),
             user_content=user_content,
             temperature=min(max(T_gen, 0.0), 2.0),
-            max_tokens=1024,
+            max_tokens=max_tokens,
+            token_callback=debug_callback,
         )
         return _parse_candidates(raw, N)
 

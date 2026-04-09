@@ -4,6 +4,9 @@ import certifi
 os.environ["SSL_CERT_FILE"] = certifi.where()
 os.environ["REQUESTS_CA_BUNDLE"] = certifi.where()
 
+from dotenv import load_dotenv
+load_dotenv()
+
 import asyncio
 import dataclasses
 import json
@@ -36,10 +39,10 @@ _engine_lock = threading.Lock()
 
 # ── Pydantic models ──────────────────────────────────────────────────────────
 class ConfigPayload(BaseModel):
-    api_base_url: str = "https://api.openai.com/v1"
-    api_key: str = ""
-    chat_model: str = "gpt-4o"
-    embedding_model: str = "text-embedding-3-small"
+    api_base_url: str = os.getenv("GWA_API_BASE_URL", "https://api.openai.com/v1")
+    api_key: str = os.getenv("GWA_API_KEY", "")
+    chat_model: str = os.getenv("GWA_CHAT_MODEL", "gpt-4o")
+    embedding_model: str = os.getenv("GWA_EMBEDDING_MODEL", "text-embedding-3-small")
     N: int = 3
     K: int = 5
     T_base: float = 0.7
@@ -53,10 +56,15 @@ class ConfigPayload(BaseModel):
     meta_temperature: float = 0.3
     top_k_rag: int = 3
     chroma_persist_dir: str = "./chroma_db"
+    attention_max_tokens: int = 256
+    generator_max_tokens: int = 1024
+    critic_max_tokens: int = 1024
+    meta_max_tokens: int = 1024
 
 
 class ChatRequest(BaseModel):
     message: str
+    debug: bool = False
 
 
 # ── Routes ───────────────────────────────────────────────────────────────────
@@ -76,9 +84,7 @@ def set_config(payload: ConfigPayload):
 
 @app.get("/api/config")
 def get_config():
-    d = dataclasses.asdict(_config)
-    d["api_key"] = "***" if d.get("api_key") else ""
-    return d
+    return dataclasses.asdict(_config)
 
 
 @app.get("/api/stats")
@@ -118,9 +124,17 @@ async def chat(req: ChatRequest):
         q: asyncio.Queue = asyncio.Queue()
         loop = asyncio.get_event_loop()
 
+        def debug_cb(agent: str, tick: int, token: str):
+            asyncio.run_coroutine_threadsafe(
+                q.put(("debug", {"agent": agent, "tick": tick, "token": token})), loop
+            )
+
         def producer():
             try:
-                for snap in _engine.run(req.message):
+                for snap in _engine.run(
+                    req.message,
+                    debug_callback=debug_cb if req.debug else None,
+                ):
                     asyncio.run_coroutine_threadsafe(
                         q.put(("tick", dataclasses.asdict(snap))), loop
                     )
@@ -137,7 +151,12 @@ async def chat(req: ChatRequest):
         final_response = ""
         while True:
             event_type, data = await q.get()
-            if event_type == "tick":
+            if event_type == "debug":
+                yield {
+                    "event": "debug",
+                    "data": json.dumps(data),
+                }
+            elif event_type == "tick":
                 if data.get("final_response"):
                     final_response = data["final_response"]
                 yield {

@@ -35,3 +35,9 @@ class GWAConfig:
     meta_temperature: float = 0.3    # Meta arbitration temperature
     top_k_rag: int = 3         # LTM retrieval top-k
     chroma_persist_dir: str = "./chroma_db"
+
+    # ── Per-agent max_tokens ─────────────────────────────────────────────────
+    attention_max_tokens: int = 256
+    generator_max_tokens: int = 1024
+    critic_max_tokens: int = 1024
+    meta_max_tokens: int = 1024

@@ -25,14 +25,15 @@ _SYSTEM_DIRECTIVE = (
 class AttentionNode(BaseAgent):
     """Generates RAG retrieval queries from the current cognitive context."""
 
-    def run(self, stm_context: str, current_input: str) -> List[str]:
+    def run(self, stm_context: str, current_input: str, debug_callback=None, max_tokens: int = 256) -> List[str]:
         """
         Returns a list of 1–3 retrieval queries.
 
         Parameters
         ----------
-        stm_context:    Formatted STM string (recent cognitive history).
-        current_input:  The unresolved external trigger INPUT_t.
+        stm_context:      Formatted STM string (recent cognitive history).
+        current_input:    The unresolved external trigger INPUT_t.
+        debug_callback:   Optional callable(token: str) for streaming debug output.
         """
         user_content = (
             f"Immediate Context (STM):\n{stm_context}\n\n"
@@ -43,7 +44,8 @@ class AttentionNode(BaseAgent):
             system_directive=_SYSTEM_DIRECTIVE,
             user_content=user_content,
             temperature=0.3,
-            max_tokens=256,
+            max_tokens=max_tokens,
+            token_callback=debug_callback,
         )
         return _parse_queries(raw)
 
