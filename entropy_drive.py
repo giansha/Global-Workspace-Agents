@@ -100,16 +100,24 @@ class EntropyDrive:
         )
 
     def _compute_entropy(self) -> float:
-        """Shannon entropy over softmax-weighted distances to cluster centers."""
-        # Use the most recent embedding as the current h_t
-        h_t = self._recent_embeddings[-1]
-        distances = _cosine_distances(h_t, self._centers)  # shape (K,)
+        """Shannon entropy over cluster-assignment distribution of recent thoughts.
 
-        # Softmax with scaling temperature τ (eq. 2 in paper)
-        scaled = -distances / self.tau
-        scaled -= scaled.max()  # numerical stability
-        exp_vals = np.exp(scaled)
-        p = exp_vals / exp_vals.sum()
+        For each thought in the window, assign it to the nearest cluster center.
+        Compute the frequency distribution over K clusters, then calculate
+        Shannon entropy H(W) = -Σ p log p.
+
+        This captures *diversity across the window* — if all recent thoughts
+        land in the same cluster, entropy is low (repetitive → raise temperature);
+        if thoughts are spread across many clusters, entropy is high (exploring →
+        lower temperature toward T_base).
+        """
+        counts = np.zeros(self.K, dtype=np.float32)
+        for h in self._recent_embeddings:
+            dists = _cosine_distances(h, self._centers)
+            nearest = int(np.argmin(dists))
+            counts[nearest] += 1
+
+        p = counts / counts.sum()
 
         # Shannon entropy H(W) = -Σ p log p (eq. 3)
         eps = 1e-12
