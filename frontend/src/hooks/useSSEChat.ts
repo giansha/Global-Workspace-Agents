@@ -20,12 +20,22 @@ export function useSSEChat() {
 
   const sendMessage = useCallback(
     async (message: string) => {
-      // Add user turn immediately
-      addTurn({ id: uuidv4(), role: 'user', content: message, ticks: [] })
+      // Do NOT add user turn yet — wait until the engine actually starts
+      // processing this message (first tick event). If an idle tick is running,
+      // the producer thread blocks on the lock; the user bubble should only
+      // appear after the idle response (if any) has been committed.
       clearCurrentTicks()
       clearDebugEvents()
       setStreaming(true)
       setError(null)
+
+      const pendingUserTurn: ConversationTurn = {
+        id: uuidv4(),
+        role: 'user',
+        content: message,
+        ticks: [],
+      }
+      let userTurnAdded = false
 
       const collectedTicks: TickSnapshot[] = []
       let finalResponse = ''
@@ -65,6 +75,11 @@ export function useSSEChat() {
                 if (currentEvent === 'debug') {
                   appendDebugEvent(payload)
                 } else if (currentEvent === 'tick') {
+                  // Engine has acquired the lock and started — now show user bubble
+                  if (!userTurnAdded) {
+                    addTurn(pendingUserTurn)
+                    userTurnAdded = true
+                  }
                   const tick = payload as TickSnapshot
                   collectedTicks.push(tick)
                   appendTick(tick)
@@ -86,6 +101,9 @@ export function useSSEChat() {
         }
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err)
+        // If we never got a tick (e.g. network error before lock), still show
+        // the user bubble so the conversation isn't silently lost.
+        if (!userTurnAdded) addTurn(pendingUserTurn)
         setError(msg)
       } finally {
         // Commit assistant turn with all collected ticks
