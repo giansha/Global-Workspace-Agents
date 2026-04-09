@@ -32,7 +32,7 @@ class AttentionNode(BaseAgent):
         debug_callback:   Optional callable(token: str) for streaming debug output.
         """
         user_content = (
-            f"Immediate Context (STM):\n{stm_context}\n\n"
+            f"Immediate Context:\n{stm_context}\n\n"
             f"External Environmental Input:\n{current_input}\n\n"
             "I will now synthesize the retrieval queries."
         )
