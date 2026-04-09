@@ -77,10 +77,20 @@ class LongTermMemory:
 
     def retrieve_multi(self, queries: List[str], top_k: int = 3) -> str:
         """Retrieve for multiple queries and return a de-duplicated context string."""
+        if not queries or self._collection.count() == 0:
+            return ""
+        # Batch all queries into a single embedding API call
+        embeddings = self.embed(queries)
         seen: set = set()
         chunks: List[str] = []
-        for q in queries:
-            for doc in self.retrieve(q, top_k=top_k):
+        n_results = min(top_k, self._collection.count())
+        for embedding in embeddings:
+            results = self._collection.query(
+                query_embeddings=[embedding],
+                n_results=n_results,
+                include=["documents"],
+            )
+            for doc in results.get("documents", [[]])[0]:
                 if doc not in seen:
                     seen.add(doc)
                     chunks.append(doc)

@@ -30,6 +30,7 @@ class ShortTermMemory:
 
     def __init__(self) -> None:
         self._entries: List[Dict[str, Any]] = []
+        self._cached_token_count: int = 0
         # Seed STM_0 with the Genesis State (§3.2)
         self.append(role="system", content=GENESIS_STATE, tick=0)
 
@@ -37,9 +38,10 @@ class ShortTermMemory:
 
     def append(self, role: str, content: str, tick: int = -1) -> None:
         self._entries.append({"role": role, "content": content, "tick": tick})
+        self._cached_token_count += _count_tokens(content)
 
     def token_count(self) -> int:
-        return sum(_count_tokens(e["content"]) for e in self._entries)
+        return self._cached_token_count
 
     def get_context_string(self) -> str:
         """Return a formatted string representation of the full STM for agents."""
@@ -55,9 +57,11 @@ class ShortTermMemory:
         Replaces the verbose history with a dense summary, preserving continuity.
         """
         last_tick = self._entries[-1]["tick"] if self._entries else 0
+        compressed_content = f"[COMPRESSED MEMORY SUMMARY]\n{summary}"
         self._entries = [
-            {"role": "system", "content": f"[COMPRESSED MEMORY SUMMARY]\n{summary}", "tick": last_tick}
+            {"role": "system", "content": compressed_content, "tick": last_tick}
         ]
+        self._cached_token_count = _count_tokens(compressed_content)
 
     def get_all_entries(self) -> List[Dict[str, Any]]:
         return list(self._entries)

@@ -10,6 +10,13 @@ load_dotenv()
 import asyncio
 import dataclasses
 import json
+import logging
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s  %(name)s  %(message)s",
+    datefmt="%H:%M:%S",
+)
 import threading
 from typing import Optional
 

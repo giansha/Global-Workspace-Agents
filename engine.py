@@ -11,8 +11,12 @@ Yields TickSnapshot dicts after each tick so the UI can render progress live.
 """
 from __future__ import annotations
 
+import time
+import logging
 from dataclasses import dataclass, field
 from typing import Generator, List, Optional, Tuple
+
+logger = logging.getLogger("gwa.timing")
 
 from config import GWAConfig
 from workspace import GlobalWorkspace
@@ -85,6 +89,7 @@ class CognitiveEngine:
         for _ in range(cfg.max_ticks):
             tick = ws.tick
             compressed = False
+            _tick_start = time.perf_counter()
 
             # Helper: build a per-agent, per-tick token callback
             def make_cb(agent_name: str, tick_num: int):
@@ -95,14 +100,19 @@ class CognitiveEngine:
                 return cb
 
             # ── Phase 1: Perceive & Retrieve ─────────────────────────────────
+            _t = time.perf_counter()
             rag_queries = self.attention.run(
                 stm_context=ws.stm.get_context_string(),
                 current_input=ws.current_input,
                 debug_callback=make_cb("attention", tick),
                 max_tokens=cfg.attention_max_tokens,
             )
+            logger.info("[tick %d] attention:    %.3fs", tick, time.perf_counter() - _t)
+
+            _t = time.perf_counter()
             rag_context = ws.ltm.retrieve_multi(rag_queries, top_k=cfg.top_k_rag)
             ws.rag_context = rag_context
+            logger.info("[tick %d] rag_retrieve: %.3fs  (queries=%d)", tick, time.perf_counter() - _t, len(rag_queries))
 
             # Build illuminated global state S_t
             state_str = ws.build_state_string()
@@ -111,6 +121,7 @@ class CognitiveEngine:
             T_gen = ws.entropy_drive.compute_T_gen()
             entropy = ws.entropy_drive.last_entropy
 
+            _t = time.perf_counter()
             candidates = self.generator.run(
                 state_string=state_str,
                 T_gen=T_gen,
@@ -118,6 +129,9 @@ class CognitiveEngine:
                 debug_callback=make_cb("generator", tick),
                 max_tokens=cfg.generator_max_tokens,
             )
+            logger.info("[tick %d] generator:   %.3fs", tick, time.perf_counter() - _t)
+
+            _t = time.perf_counter()
             evaluations = self.critic.run(
                 state_string=state_str,
                 candidates=candidates,
@@ -125,8 +139,10 @@ class CognitiveEngine:
                 debug_callback=make_cb("critic", tick),
                 max_tokens=cfg.critic_max_tokens,
             )
+            logger.info("[tick %d] critic:      %.3fs", tick, time.perf_counter() - _t)
 
             # ── Phase 3: Arbitrate ────────────────────────────────────────────
+            _t = time.perf_counter()
             winning_thought, tag = self.meta.run(
                 state_string=state_str,
                 candidates=candidates,
@@ -134,8 +150,20 @@ class CognitiveEngine:
                 debug_callback=make_cb("meta", tick),
                 max_tokens=cfg.meta_max_tokens,
             )
+            logger.info("[tick %d] meta:        %.3fs", tick, time.perf_counter() - _t)
 
             # ── Phase 4: Update ───────────────────────────────────────────────
+            # Pre-embed W_t now (single API call); reused by both entropy drive
+            # and any LTM store below — avoids a redundant embedding round-trip.
+            _t = time.perf_counter()
+            winning_embedding: list | None = None
+            try:
+                result = ws.ltm.embed([winning_thought])
+                winning_embedding = result[0] if result else None
+            except Exception:
+                pass
+            logger.info("[tick %d] embed_Wt:    %.3fs", tick, time.perf_counter() - _t)
+
             # 4a. Memory bifurcation if STM exceeds threshold θ
             if ws.stm.token_count() > cfg.theta:
                 summary = self.meta.summarize(ws.stm.get_context_string())
@@ -148,8 +176,8 @@ class CognitiveEngine:
                 ws.stm.append(role="assistant", content=winning_thought, tick=tick)
                 ws.stm.append(role="user", content=ws.current_input + " [RESOLVED]", tick=tick)
 
-                # Update entropy drive with new W_t embedding
-                self._update_entropy(winning_thought)
+                # Update entropy drive with pre-computed embedding (no extra API call)
+                self._update_entropy(winning_thought, embedding=winning_embedding)
 
                 snapshot = TickSnapshot(
                     tick=tick,
@@ -165,6 +193,7 @@ class CognitiveEngine:
                     compressed=compressed,
                     final_response=winning_thought,
                 )
+                logger.info("[tick %d] TOTAL:       %.3fs  → RESPONSE", tick, time.perf_counter() - _tick_start)
                 ws.reset_input()
                 ws.tick += 1
                 yield snapshot
@@ -177,7 +206,7 @@ class CognitiveEngine:
                     + "\n[PENDING: External environment awaits response]"
                 )
 
-                self._update_entropy(winning_thought)
+                self._update_entropy(winning_thought, embedding=winning_embedding)
 
                 snapshot = TickSnapshot(
                     tick=tick,
@@ -192,6 +221,7 @@ class CognitiveEngine:
                     stm_token_count=ws.stm.token_count(),
                     compressed=compressed,
                 )
+                logger.info("[tick %d] TOTAL:       %.3fs  → THINK_MORE", tick, time.perf_counter() - _tick_start)
                 ws.tick += 1
                 yield snapshot
 
@@ -215,11 +245,17 @@ class CognitiveEngine:
 
     # ── Internal ──────────────────────────────────────────────────────────────
 
-    def _update_entropy(self, thought: str) -> None:
-        """Embed W_t and update the entropy drive's cluster state."""
+    def _update_entropy(self, thought: str, embedding: list | None = None) -> None:
+        """Update the entropy drive's cluster state.
+
+        If `embedding` is supplied (pre-computed), skips the API call entirely.
+        Otherwise falls back to embedding `thought` on demand.
+        """
         try:
-            embeddings = self.workspace.ltm.embed([thought])
-            if embeddings:
-                self.workspace.entropy_drive.update(embeddings[0])
+            if embedding is None:
+                result = self.workspace.ltm.embed([thought])
+                embedding = result[0] if result else None
+            if embedding is not None:
+                self.workspace.entropy_drive.update(embedding)
         except Exception:
             pass  # entropy update is best-effort; don't crash the tick

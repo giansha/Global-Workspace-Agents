@@ -44,6 +44,7 @@ class BaseAgent:
         token_callback(token: str) for each text chunk as it arrives.
         """
         system_prompt = P_SELF + system_directive
+        _extra = {"enable_thinking": False}
         if token_callback is None:
             response = self._client.chat.completions.create(
                 model=self._model,
@@ -53,6 +54,7 @@ class BaseAgent:
                 ],
                 temperature=temperature,
                 max_tokens=max_tokens,
+                extra_body=_extra,
             )
             return response.choices[0].message.content or ""
 
@@ -67,6 +69,7 @@ class BaseAgent:
             temperature=temperature,
             max_tokens=max_tokens,
             stream=True,
+            extra_body=_extra,
         )
         for chunk in stream:
             token = chunk.choices[0].delta.content if chunk.choices else None
