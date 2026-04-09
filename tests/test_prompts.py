@@ -1,0 +1,22 @@
+"""Tests that agent directives are free of architecture meta-language."""
+from agents.base import P_SELF
+from agents.attention import _SYSTEM_DIRECTIVE as ATTENTION_DIRECTIVE
+from agents.generator import _build_system_directive
+from agents.critic import _SYSTEM_DIRECTIVE as CRITIC_DIRECTIVE
+from agents.meta import _SYSTEM_DIRECTIVE as META_DIRECTIVE
+
+BANNED_TERMS = [
+    "cognitive entity",
+    "distributed",
+    "specialized operational roles",
+    "autonomous, continuously executing",
+]
+
+def test_p_self_has_no_architecture_terms():
+    for term in BANNED_TERMS:
+        assert term not in P_SELF, f"P_SELF contains banned term: '{term}'"
+
+def test_p_self_expresses_identity():
+    assert "curious" in P_SELF or "curiosity" in P_SELF
+    assert "honest" in P_SELF
+    assert "perspective" in P_SELF
