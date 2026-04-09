@@ -1,13 +1,15 @@
 'use client'
 
 import { useGWAStore } from '@/store/useGWAStore'
+import { useIdleStream } from '@/hooks/useIdleStream'
 import { Sidebar } from './Sidebar'
 import { DebugSidebar } from './DebugSidebar'
 import { DebugToggleBar } from './DebugToggleBar'
 import { ConversationPanel } from '@/components/chat/ConversationPanel'
 
 export function AppShell() {
-  const { debugMode } = useGWAStore()
+  const { debugMode, engineInitialized } = useGWAStore()
+  useIdleStream(engineInitialized)
 
   return (
     <div className="flex h-full bg-[var(--bg-base)]">

@@ -56,6 +56,12 @@ export function HyperSection({ config, onChange }: Props) {
         min={1} max={16} step={1}
         onChange={(e) => onChange({ max_ticks: Number(e.target.value) })}
       />
+      <SliderField
+        label="Idle interval (s)"
+        value={config.idle_interval}
+        min={5} max={300} step={5}
+        onChange={(e) => onChange({ idle_interval: Number(e.target.value) })}
+      />
 
       <p className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider pt-1">Max Tokens per Agent</p>
       <div className="grid grid-cols-2 gap-2">
