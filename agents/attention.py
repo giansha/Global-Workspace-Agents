@@ -1,8 +1,8 @@
 """
 Attention Node — "The Spotlight" in GWT (§3.6).
 
-Parses STM and external input to generate 1-3 precise retrieval queries
-for the LTM vector archive. Restricted from engaging the user directly.
+Given the current context and input, identifies 1-3 things worth recalling
+from memory to inform the cognitive cycle.
 """
 from __future__ import annotations
 
