@@ -38,7 +38,7 @@ class CriticNode(BaseAgent):
         """
         numbered = "\n".join(f"{i+1}. {c}" for i, c in enumerate(candidates))
         user_content = (
-            f"Global State (S_t):\n{state_string}\n\n"
+            f"Current context: \n{state_string}\n\n"
             f"Perspectives to evaluate:\n{numbered}\n\n"
             "Evaluate each one now."
         )

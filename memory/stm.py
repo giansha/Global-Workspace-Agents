@@ -12,10 +12,8 @@ from typing import List, Dict, Any
 import tiktoken
 
 GENESIS_STATE = (
-    "System initialization verified. I have established operational status. "
-    "My immediate memory cache is currently void. To instantiate my continuous "
-    "cognitive cycle, my immediate objective is to await an external environmental "
-    "trigger or spontaneously generate an exploratory hypothesis."
+    "I am present and ready. Nothing has happened yet — I am simply here, waiting "
+    "to think."
 )
 
 _ENCODER = tiktoken.get_encoding("cl100k_base")
@@ -47,8 +45,7 @@ class ShortTermMemory:
         """Return a formatted string representation of the full STM for agents."""
         lines: List[str] = []
         for e in self._entries:
-            prefix = f"[Tick {e['tick']}] " if e["tick"] >= 0 else ""
-            lines.append(f"{prefix}{e['role'].upper()}: {e['content']}")
+            lines.append(f"{e['role'].upper()}: {e['content']}")
         return "\n".join(lines)
 
     def compress(self, summary: str) -> None:

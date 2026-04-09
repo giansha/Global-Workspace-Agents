@@ -14,8 +14,8 @@ from .base import BaseAgent
 
 def _build_system_directive(N: int) -> str:
     return (
-        f"Consider the situation from {N} distinct angles. For each angle, articulate "
-        "the core insight or response impulse in 1-3 sentences. Think freely — "
+        f"Consider the situation from {N} distinct angles, each angle's content must be self-contained."
+        "Think freely — "
         "contrasting or even contradictory perspectives are valuable. "
         "Output as a numbered list. No meta-commentary."
     )
@@ -38,7 +38,7 @@ class GeneratorNode(BaseAgent):
         List of N candidate thought strings.
         """
         user_content = (
-            f"Global State (S_t):\n{state_string}\n\n"
+            f"Current context: \n{state_string}\n\n"
             "I will now generate the numbered candidate thoughts."
         )
         raw = self.call(

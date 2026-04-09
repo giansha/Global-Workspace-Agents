@@ -180,6 +180,7 @@ class CognitiveEngine:
                 final_response = self.response.run(
                     winning_thought=winning_thought,
                     stm_context=ws.stm.get_context_string(),
+                    user_message=ws.current_input,
                     debug_callback=make_cb("response", tick),
                     max_tokens=cfg.response_max_tokens,
                 )

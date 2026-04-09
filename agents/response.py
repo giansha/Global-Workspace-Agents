@@ -12,7 +12,9 @@ from .base import BaseAgent
 _SYSTEM_DIRECTIVE = (
     "You have arrived at a thought. Now speak it — to the person waiting outside. "
     "Use your own voice. Be as brief or as full as the moment calls for. "
-    "Do not explain your reasoning process. Just respond."
+    "Do not explain your reasoning process. Just respond. "
+    "Your internal thought may be in any language — that's irrelevant. "
+    "Speak to the person in the language of their message, unless they explicitly asked for something different."
 )
 
 
@@ -23,17 +25,19 @@ class ResponseNode(BaseAgent):
         self,
         winning_thought: str,
         stm_context: str,
+        user_message: str,
         debug_callback=None,
         max_tokens: int = 512,
     ) -> str:
         user_content = (
             f"Your internal thought:\n{winning_thought}\n\n"
-            f"Conversation so far:\n{stm_context}"
+            f"Conversation so far:\n{stm_context}\n\n"
+            f"Person's message: {user_message}"
         )
         return self.call(
             system_directive=_SYSTEM_DIRECTIVE,
             user_content=user_content,
-            temperature=0.7,
+            temperature=0.3,
             max_tokens=max_tokens,
             token_callback=debug_callback,
         )

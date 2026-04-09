@@ -16,10 +16,10 @@ from .base import BaseAgent
 _SYSTEM_DIRECTIVE = (
     "Given these perspectives and their assessments, which feels most true, "
     "complete, and worth expressing? Select it and decide: is this ready to "
-    "share with the person outside, or does it need more thought?\n\n"
+    "respond to the person outside, or does it need more thought?\n\n"
     "Output format:\n"
-    "WINNING THOUGHT: [full text of the selected perspective]\n"
-    "TRANSITION: [RESPONSE] or [THINK_MORE]\n"
+    "WINNING THOUGHT: \"!!N!!\", where N is the number of the selected perspective\n"
+    "TRANSITION: \"[RESPONSE]\" or \"[THINK_MORE]\"\n"
     "RATIONALE: [1-2 sentences]"
 )
 
@@ -53,7 +53,7 @@ class MetaNode(BaseAgent):
             for i, (score, critique) in enumerate(evaluations)
         )
         user_content = (
-            f"Global State (S_t):\n{state_string}\n\n"
+            f"Current context:\n{state_string}\n\n"
             f"Candidate Thoughts:\n{numbered_candidates}\n\n"
             f"Critical Evaluations:\n{numbered_evals}\n\n"
             "I will now execute the final arbitration."
@@ -87,16 +87,15 @@ def _parse_meta_output(raw: str, candidates: List[str]) -> Tuple[str, str]:
     elif re.search(r"\[THINK_MORE\]", raw, re.IGNORECASE):
         tag = "THINK_MORE"
 
-    # Extract winning thought
-    wt_match = re.search(
-        r"WINNING THOUGHT:\s*(.+?)(?=\nTRANSITION:|\nRATIONALE:|$)",
-        raw,
-        re.IGNORECASE | re.DOTALL,
-    )
+    # Extract winning thought by number
+    wt_match = re.search(r"\s*!!(\d+)!!", raw, re.IGNORECASE)
     if wt_match:
-        winning = wt_match.group(1).strip()
+        idx = int(wt_match.group(1)) - 1
+        if 0 <= idx < len(candidates):
+            winning = candidates[idx]
+        else:
+            winning = candidates[0] if candidates else raw.strip()
     else:
-        # Fallback: pick the highest-scoring candidate by position in raw text
         winning = candidates[0] if candidates else raw.strip()
 
     return winning, tag
