@@ -54,9 +54,9 @@ class ShortTermMemory:
         Replaces the verbose history with a dense summary, preserving continuity.
         """
         last_tick = self._entries[-1]["tick"] if self._entries else 0
-        compressed_content = f"[COMPRESSED MEMORY SUMMARY]\n{summary}"
+        compressed_content = f"\n{summary}"
         self._entries = [
-            {"role": "system", "content": compressed_content, "tick": last_tick}
+            {"role": "memory", "content": compressed_content, "tick": last_tick}
         ]
         self._cached_token_count = _count_tokens(compressed_content)
 

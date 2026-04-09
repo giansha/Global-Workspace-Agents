@@ -186,7 +186,7 @@ class CognitiveEngine:
                 )
                 logger.info("[tick %d] response:    %.3fs", tick, time.perf_counter() - _t)
 
-                ws.stm.append(role="assistant", content=final_response, tick=tick)
+                ws.stm.append(role="Me", content=final_response, tick=tick)
                 ws.stm.append(role="user", content=ws.current_input + " [RESOLVED]", tick=tick)
 
                 self._update_entropy(winning_thought, embedding=winning_embedding)
@@ -212,7 +212,7 @@ class CognitiveEngine:
                 return
 
             else:  # THINK_MORE
-                ws.stm.append(role="assistant", content=winning_thought, tick=tick)
+                ws.stm.append(role="Me", content=winning_thought, tick=tick)
                 ws.current_input = (
                     ws.current_input
                     + "\n[PENDING: External environment awaits response]"
@@ -239,7 +239,7 @@ class CognitiveEngine:
 
         # Safety: max_ticks exceeded — force a response with the last W_t
         fallback = winning_thought if 'winning_thought' in dir() else "I need more time to process this."
-        ws.stm.append(role="assistant", content=fallback, tick=ws.tick)
+        ws.stm.append(role="Me", content=fallback, tick=ws.tick)
         ws.reset_input()
         yield TickSnapshot(
             tick=ws.tick,

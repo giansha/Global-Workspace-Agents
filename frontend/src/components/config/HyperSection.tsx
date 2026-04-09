@@ -87,6 +87,13 @@ export function HyperSection({ config, onChange }: Props) {
           value={config.meta_max_tokens}
           onChange={(e) => onChange({ meta_max_tokens: Number(e.target.value) })}
         />
+        <TextField
+          label="Response"
+          type="number"
+          min={1}
+          value={config.response_max_tokens}
+          onChange={(e) => onChange({ response_max_tokens: Number(e.target.value) })}
+        />
       </div>
     </div>
   )

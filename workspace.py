@@ -12,7 +12,7 @@ from config import GWAConfig
 from memory.stm import ShortTermMemory
 from memory.ltm import LongTermMemory
 from entropy_drive import EntropyDrive
-
+from typing import List
 
 class GlobalWorkspace:
     """
