@@ -24,9 +24,8 @@ _SYSTEM_DIRECTIVE = (
 )
 
 _SUMMARIZE_DIRECTIVE = (
-    "I act as the Memory Compression Node. My task is to synthesize a dense, "
-    "coherent semantic summary of the provided cognitive history. The summary must "
-    "preserve all critical decisions, unresolved threads, and key conclusions. "
+    "Synthesize a dense, coherent summary of the conversation history below. "
+    "Preserve all key decisions, unresolved threads, and important conclusions. "
     "It should be substantially shorter than the original while maintaining "
     "full narrative continuity. Output only the summary text."
 )

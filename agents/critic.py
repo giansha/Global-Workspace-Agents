@@ -39,8 +39,8 @@ class CriticNode(BaseAgent):
         numbered = "\n".join(f"{i+1}. {c}" for i, c in enumerate(candidates))
         user_content = (
             f"Global State (S_t):\n{state_string}\n\n"
-            f"Hypotheses for Verification:\n{numbered}\n\n"
-            "I will now execute my numbered critical evaluation."
+            f"Perspectives to evaluate:\n{numbered}\n\n"
+            "Evaluate each one now."
         )
         raw = self.call(
             system_directive=_SYSTEM_DIRECTIVE,
