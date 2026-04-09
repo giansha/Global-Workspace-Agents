@@ -29,3 +29,15 @@ def test_attention_directive_is_task_pure():
 
 def test_attention_directive_describes_recall():
     assert "recall" in ATTENTION_DIRECTIVE or "recalling" in ATTENTION_DIRECTIVE
+
+GENERATOR_BANNED = ["Generator Node", "divergent reasoning engine", "computational state", "hypotheses"]
+
+def test_generator_directive_is_task_pure():
+    directive = _build_system_directive(3)
+    for term in GENERATOR_BANNED:
+        assert term not in directive, f"Generator directive contains: '{term}'"
+
+def test_generator_directive_describes_angles():
+    directive = _build_system_directive(3)
+    assert "angle" in directive or "angles" in directive
+    assert "3" in directive

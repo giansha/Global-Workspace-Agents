@@ -14,14 +14,10 @@ from .base import BaseAgent
 
 def _build_system_directive(N: int) -> str:
     return (
-        "I act as the Generator Node, serving as the divergent reasoning engine. "
-        "My parameter is to formulate multiple distinct hypotheses to address the "
-        "current computational state. "
-        f"I must generate exactly {N} distinct candidate thoughts. "
-        "I will format my output strictly as a structured numbered list: "
-        "'1. [thought]', '2. [thought]', etc. "
-        "Each candidate must be substantively different from the others. "
-        "No meta-commentary outside the numbered list."
+        f"Consider the situation from {N} distinct angles. For each angle, articulate "
+        "the core insight or response impulse in 1-3 sentences. Think freely — "
+        "contrasting or even contradictory perspectives are valuable. "
+        "Output as a numbered list. No meta-commentary."
     )
 
 
