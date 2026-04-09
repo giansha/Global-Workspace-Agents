@@ -7,7 +7,8 @@ across all ticks (§3.2, §3.6).
 """
 from __future__ import annotations
 
-from openai import OpenAI
+import time
+from openai import OpenAI, APIConnectionError, RateLimitError
 
 # ── P_Self: Core Invariant (§3.6) ────────────────────────────────────────────
 P_SELF = (
@@ -35,45 +36,57 @@ class BaseAgent:
         token_callback=None,
     ) -> str:
         """
-        Make a single LLM call.
+        Make a single LLM call with exponential-backoff retry.
 
         P_Self is automatically prepended to the system directive so that every
         agent retains the GWA identity invariant regardless of its role.
 
         If token_callback is provided, the call uses streaming mode and invokes
         token_callback(token: str) for each text chunk as it arrives.
+
+        Retries up to 3 times on APIConnectionError / RateLimitError with
+        exponential backoff (1 s → 2 s → 4 s). All other exceptions propagate
+        immediately.
         """
         system_prompt = P_SELF + system_directive
         _extra = {"enable_thinking": False}
-        if token_callback is None:
-            response = self._client.chat.completions.create(
-                model=self._model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_content},
-                ],
-                temperature=temperature,
-                max_tokens=max_tokens,
-                extra_body=_extra,
-            )
-            return response.choices[0].message.content or ""
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_content},
+        ]
+        _retryable = (APIConnectionError, RateLimitError)
+        max_attempts = 3
 
-        # Streaming path: emit tokens via callback and return full text
-        parts: list[str] = []
-        stream = self._client.chat.completions.create(
-            model=self._model,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_content},
-            ],
-            temperature=temperature,
-            max_tokens=max_tokens,
-            stream=True,
-            extra_body=_extra,
-        )
-        for chunk in stream:
-            token = chunk.choices[0].delta.content if chunk.choices else None
-            if token:
-                parts.append(token)
-                token_callback(token)
-        return "".join(parts)
+        for attempt in range(max_attempts):
+            try:
+                if token_callback is None:
+                    response = self._client.chat.completions.create(
+                        model=self._model,
+                        messages=messages,
+                        temperature=temperature,
+                        max_tokens=max_tokens,
+                        extra_body=_extra,
+                    )
+                    return response.choices[0].message.content or ""
+
+                # Streaming path: emit tokens via callback and return full text
+                parts: list[str] = []
+                stream = self._client.chat.completions.create(
+                    model=self._model,
+                    messages=messages,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                    stream=True,
+                    extra_body=_extra,
+                )
+                for chunk in stream:
+                    token = chunk.choices[0].delta.content if chunk.choices else None
+                    if token:
+                        parts.append(token)
+                        token_callback(token)
+                return "".join(parts)
+
+            except _retryable:
+                if attempt == max_attempts - 1:
+                    raise
+                time.sleep(2 ** attempt)  # 1 s, 2 s, 4 s
