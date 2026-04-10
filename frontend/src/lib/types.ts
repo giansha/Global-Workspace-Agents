@@ -17,6 +17,8 @@ export interface GWAConfig {
   api_base_url: string
   api_key: string
   chat_model: string
+  low_level_model: string
+  high_level_model: string
   embedding_model: string
   N: number
   K: number
@@ -67,6 +69,8 @@ export const DEFAULT_CONFIG: GWAConfig = {
   api_base_url: 'https://api.openai.com/v1',
   api_key: '',
   chat_model: 'gpt-4o',
+  low_level_model: '',
+  high_level_model: '',
   embedding_model: 'text-embedding-3-small',
   N: 3,
   K: 5,
