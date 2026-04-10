@@ -114,6 +114,7 @@ class CognitiveEngine:
             _t = time.perf_counter()
             rag_context = ws.ltm.retrieve_multi(rag_queries, top_k=cfg.top_k_rag)
             ws.rag_context = rag_context
+            ws.last_rag_queries = rag_queries
             logger.info("[tick %d] rag_retrieve: %.3fs  (queries=%d)", tick, time.perf_counter() - _t, len(rag_queries))
 
             # Build illuminated global state S_t
@@ -172,6 +173,7 @@ class CognitiveEngine:
                 summary = self.meta.summarize(stm_context)
                 knowledge = self.meta.extract_knowledge(stm_context)
                 ws.ltm.store(knowledge, metadata={"type": "knowledge", "tick": tick})
+                ws.last_knowledge = knowledge
                 ws.stm.compress(summary)
                 compressed = True
 
