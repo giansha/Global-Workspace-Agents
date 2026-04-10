@@ -76,3 +76,11 @@ jobs:
           git add -A
           git diff --cached --quiet || git commit -m "sync from GitHub $(git -C .. rev-parse --short HEAD)"
           git push
+
+      - name: Trigger HF Space rebuild
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          curl -s -X POST \
+            "https://huggingface.co/api/spaces/giant-S/Global-Workspace-Agents/restart?factory=true" \
+            -H "Authorization: Bearer ${HF_TOKEN}"
