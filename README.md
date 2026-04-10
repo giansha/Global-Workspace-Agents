@@ -4,7 +4,7 @@
 
 ### *"Theater of Mind" for LLMs: A Cognitive Architecture Based on Global Workspace Theory*
 
-[![Paper](https://img.shields.io/badge/Paper-XXX%202026-blue?style=flat-square&logo=arxiv)](https://arxiv.org/abs/PLACEHOLDER)
+[![Paper](https://img.shields.io/badge/Paper-Arxiv%202026-blue?style=flat-square&logo=arxiv)](https://arxiv.org/abs/2604.08206)
 [![Demo](https://img.shields.io/badge/Demo-Live%20Website-green?style=flat-square&logo=vercel)](https://PLACEHOLDER.example.com)
 [![License](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=flat-square&logo=python)](https://www.python.org/)
@@ -198,11 +198,13 @@ C:/ProgramData/anaconda3/envs/agent/python.exe -m pytest tests/
 If you find this work useful, please cite:
 
 ```bibtex
-@inproceedings{gwa2026,
-  title     = {"Theater of Mind" for LLMs: A Cognitive Architecture Based on Global Workspace Theory},
-  author    = {PLACEHOLDER},
-  booktitle = {XXX},
-  year      = {2026},
-  url       = {https://arxiv.org/abs/PLACEHOLDER}
+@misc{shang2026theatermindllmscognitive,
+      title={"Theater of Mind" for LLMs: A Cognitive Architecture Based on Global Workspace Theory}, 
+      author={Wenlong Shang},
+      year={2026},
+      eprint={2604.08206},
+      archivePrefix={arXiv},
+      primaryClass={cs.MA},
+      url={https://arxiv.org/abs/2604.08206}, 
 }
 ```
