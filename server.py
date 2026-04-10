@@ -11,6 +11,7 @@ import asyncio
 import dataclasses
 import json
 import logging
+import time
 
 logging.basicConfig(
     level=logging.INFO,
@@ -20,7 +21,7 @@ logging.basicConfig(
 import threading
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
@@ -38,28 +39,56 @@ app.add_middleware(
     ],
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"],
+    allow_headers=["*", "X-Session-ID"],
 )
 
-# ── Singleton state ──────────────────────────────────────────────────────────
-_engine: Optional[CognitiveEngine] = None
-_config: GWAConfig = GWAConfig()
-_engine_lock = threading.Lock()
+SESSION_INACTIVITY_TIMEOUT: float = 10 * 60  # 10 minutes
 
-_idle_enabled: bool = False
-_idle_subscribers: list[asyncio.Queue] = []
-_idle_subscribers_lock = threading.Lock()
-_event_loop: asyncio.AbstractEventLoop | None = None
+# ── Per-session state ────────────────────────────────────────────────────────
+
+class SessionState:
+    def __init__(self):
+        self.engine: Optional[CognitiveEngine] = None
+        self.config: GWAConfig = GWAConfig()
+        self.lock = threading.Lock()
+        self.idle_enabled: bool = False
+        self.idle_subscribers: list[asyncio.Queue] = []
+        self.idle_subscribers_lock = threading.Lock()
+        self.last_activity: float = time.time()
+        self.event_loop: asyncio.AbstractEventLoop | None = None
+
+    def touch(self):
+        self.last_activity = time.time()
+
+    def clear(self):
+        """Destroy engine and wipe sensitive config fields."""
+        self.idle_enabled = False
+        self.engine = None
+        self.config = GWAConfig(api_key="", api_base_url=self.config.api_base_url)
+        log = logging.getLogger("gwa.session")
+        log.info("Session cleared due to inactivity.")
+
+
+_sessions: dict[str, SessionState] = {}
+_sessions_lock = threading.Lock()
 
 IDLE_PROMPT = "No one is speaking to me right now. I can continue thinking on my own, or reach out and say something to the user."
 
 
+def _get_session(session_id: str) -> SessionState:
+    with _sessions_lock:
+        if session_id not in _sessions:
+            _sessions[session_id] = SessionState()
+        return _sessions[session_id]
+
+
 # ── Pydantic models ──────────────────────────────────────────────────────────
+
 class ConfigPayload(BaseModel):
-    api_base_url: str = os.getenv("GWA_API_BASE_URL", "https://api.openai.com/v1")
-    api_key: str = os.getenv("GWA_API_KEY", "")
-    chat_model: str = os.getenv("GWA_CHAT_MODEL", "gpt-4o")
-    embedding_model: str = os.getenv("GWA_EMBEDDING_MODEL", "text-embedding-3-small")
+    api_base_url: str = "https://api.openai.com/v1"
+    api_key: str = ""
+    chat_model: str = "gpt-4o"
+    embedding_model: str = "text-embedding-3-small"
     N: int = 3
     K: int = 5
     T_base: float = 0.7
@@ -88,98 +117,112 @@ class ChatRequest(BaseModel):
     debug: bool = False
 
 
-def _get_or_set_event_loop() -> asyncio.AbstractEventLoop | None:
-    """Capture the running uvicorn event loop from an async context, store it once."""
-    global _event_loop
-    if _event_loop is None:
-        try:
-            _event_loop = asyncio.get_running_loop()
-        except RuntimeError:
-            pass
-    return _event_loop
+# ── Idle broadcast helpers ───────────────────────────────────────────────────
 
-
-def _idle_broadcast(event_type: str, data: dict | None, loop: asyncio.AbstractEventLoop):
-    """Push an SSE event to all connected /api/idle-stream clients."""
-    with _idle_subscribers_lock:
+def _idle_broadcast(sess: SessionState, event_type: str, data: dict | None):
+    loop = sess.event_loop
+    if loop is None:
+        return
+    with sess.idle_subscribers_lock:
         dead = []
-        for q in _idle_subscribers:
+        for q in sess.idle_subscribers:
             try:
                 asyncio.run_coroutine_threadsafe(q.put((event_type, data)), loop)
             except Exception:
                 dead.append(q)
         for q in dead:
-            _idle_subscribers.remove(q)
+            sess.idle_subscribers.remove(q)
 
 
 def _idle_scheduler_loop():
-    """Background daemon: fires idle ticks on a timer."""
-    import time
+    """Background daemon: fires idle ticks for each session."""
     while True:
-        # Sleep first so initial startup doesn't immediately fire
-        cfg_interval = _config.idle_interval if _config else 30.0
-        time.sleep(cfg_interval)
+        time.sleep(5)
+        with _sessions_lock:
+            sessions = list(_sessions.items())
 
-        if not _idle_enabled or _engine is None:
-            continue
+        for sid, sess in sessions:
+            if not sess.idle_enabled or sess.engine is None:
+                continue
+            if sess.event_loop is None:
+                continue
 
-        loop = _event_loop
-        if loop is None:
-            continue  # event loop not yet captured (no async request has arrived yet)
+            interval = sess.config.idle_interval if sess.config else 30.0
+            if time.time() - sess.last_activity < interval:
+                continue
 
-        if not _engine_lock.acquire(blocking=True, timeout=cfg_interval):
-            continue  # engine still busy after one full interval, skip this cycle
+            if not sess.lock.acquire(blocking=False):
+                continue
 
-        try:
-            for snap in _engine.run(
-                IDLE_PROMPT,
-                is_idle=True,
-                debug_callback=lambda agent, tick, token: _idle_broadcast(
-                    "debug", {"agent": agent, "tick": tick, "token": token}, loop
-                ),
-            ):
-                snap_dict = dataclasses.asdict(snap)
-                if snap.transition_tag == "RESPONSE":
-                    _idle_broadcast("tick", snap_dict, loop)
-                    _idle_broadcast("done", {"final_response": snap.final_response}, loop)
-                # THINK_MORE: winning_thought already in STM via engine; no broadcast
-        except Exception as e:
-            logging.getLogger("gwa.idle").exception("Idle tick error: %s", e)
-        finally:
-            _engine_lock.release()
+            try:
+                for snap in sess.engine.run(
+                    IDLE_PROMPT,
+                    is_idle=True,
+                    debug_callback=lambda agent, tick, token: _idle_broadcast(
+                        sess, "debug", {"agent": agent, "tick": tick, "token": token}
+                    ),
+                ):
+                    snap_dict = dataclasses.asdict(snap)
+                    if snap.transition_tag == "RESPONSE":
+                        _idle_broadcast(sess, "tick", snap_dict)
+                        _idle_broadcast(sess, "done", {"final_response": snap.final_response})
+            except Exception as e:
+                logging.getLogger("gwa.idle").exception("Idle tick error [%s]: %s", sid, e)
+            finally:
+                sess.lock.release()
 
 
-_idle_thread = threading.Thread(target=_idle_scheduler_loop, daemon=True, name="idle-scheduler")
-_idle_thread.start()
+def _inactivity_cleanup_loop():
+    """Background daemon: clears sessions inactive for SESSION_INACTIVITY_TIMEOUT."""
+    while True:
+        time.sleep(60)
+        now = time.time()
+        with _sessions_lock:
+            expired = [
+                sid for sid, sess in _sessions.items()
+                if sess.engine is not None and now - sess.last_activity > SESSION_INACTIVITY_TIMEOUT
+            ]
+        for sid in expired:
+            sess = _sessions.get(sid)
+            if sess:
+                with sess.lock:
+                    sess.clear()
+
+
+threading.Thread(target=_idle_scheduler_loop, daemon=True, name="idle-scheduler").start()
+threading.Thread(target=_inactivity_cleanup_loop, daemon=True, name="inactivity-cleanup").start()
 
 
 # ── Routes ───────────────────────────────────────────────────────────────────
 
 @app.get("/api/health")
 def health():
-    return {"status": "ok", "engine_ready": _engine is not None}
+    return {"status": "ok"}
 
 
 @app.post("/api/config")
-def set_config(payload: ConfigPayload):
-    global _engine, _config
-    _config = GWAConfig(**payload.model_dump())
-    _engine = CognitiveEngine(_config)
-    global _idle_enabled
-    _idle_enabled = _config.idle_enabled
+def set_config(payload: ConfigPayload, x_session_id: str = Header(...)):
+    sess = _get_session(x_session_id)
+    sess.touch()
+    with sess.lock:
+        sess.config = GWAConfig(**payload.model_dump())
+        sess.engine = CognitiveEngine(sess.config)
+        sess.idle_enabled = sess.config.idle_enabled
     return {"status": "initialized"}
 
 
 @app.get("/api/config")
-def get_config():
-    return dataclasses.asdict(_config)
+def get_config(x_session_id: str = Header(...)):
+    sess = _get_session(x_session_id)
+    return dataclasses.asdict(sess.config)
 
 
 @app.get("/api/stats")
-def get_stats():
-    if _engine is None:
+def get_stats(x_session_id: str = Header(...)):
+    sess = _get_session(x_session_id)
+    if sess.engine is None:
         return {"initialized": False}
-    ws = _engine.workspace
+    ws = sess.engine.workspace
     return {
         "initialized": True,
         "stm_tokens": ws.stm.token_count(),
@@ -191,8 +234,9 @@ def get_stats():
 
 
 @app.get("/api/workspace")
-def get_workspace():
-    if _engine is None:
+def get_workspace(x_session_id: str = Header(...)):
+    sess = _get_session(x_session_id)
+    if sess.engine is None:
         return {
             "stm_entries": [],
             "ltm_count": 0,
@@ -200,7 +244,7 @@ def get_workspace():
             "rag_context": "",
             "rag_queries": [],
         }
-    ws = _engine.workspace
+    ws = sess.engine.workspace
     return {
         "stm_entries": ws.stm.get_all_entries(),
         "ltm_count": ws.ltm.count(),
@@ -211,14 +255,17 @@ def get_workspace():
 
 
 @app.get("/api/idle-stream")
-async def idle_stream():
-    """Persistent SSE stream for idle tick events."""
+async def idle_stream(x_session_id: str = Header(...)):
+    sess = _get_session(x_session_id)
     q: asyncio.Queue = asyncio.Queue()
-    with _idle_subscribers_lock:
-        _idle_subscribers.append(q)
+
+    if sess.event_loop is None:
+        sess.event_loop = asyncio.get_running_loop()
+
+    with sess.idle_subscribers_lock:
+        sess.idle_subscribers.append(q)
 
     async def generator():
-        _get_or_set_event_loop()
         try:
             while True:
                 event_type, data = await q.get()
@@ -229,37 +276,42 @@ async def idle_stream():
         except asyncio.CancelledError:
             pass
         finally:
-            with _idle_subscribers_lock:
-                if q in _idle_subscribers:
-                    _idle_subscribers.remove(q)
+            with sess.idle_subscribers_lock:
+                if q in sess.idle_subscribers:
+                    sess.idle_subscribers.remove(q)
 
     return EventSourceResponse(generator())
 
 
 @app.post("/api/idle/enable")
-def idle_enable():
-    global _idle_enabled
-    _idle_enabled = True
+def idle_enable(x_session_id: str = Header(...)):
+    sess = _get_session(x_session_id)
+    sess.idle_enabled = True
     return {"status": "idle_enabled"}
 
 
 @app.post("/api/idle/disable")
-def idle_disable():
-    global _idle_enabled
-    _idle_enabled = False
+def idle_disable(x_session_id: str = Header(...)):
+    sess = _get_session(x_session_id)
+    sess.idle_enabled = False
     return {"status": "idle_disabled"}
 
 
 @app.post("/api/chat")
-async def chat(req: ChatRequest):
-    if _engine is None:
+async def chat(req: ChatRequest, x_session_id: str = Header(...)):
+    sess = _get_session(x_session_id)
+    sess.touch()
+
+    if sess.engine is None:
         raise HTTPException(
             status_code=400,
             detail="Engine not initialized. POST /api/config first.",
         )
 
+    if sess.event_loop is None:
+        sess.event_loop = asyncio.get_running_loop()
+
     async def event_generator():
-        _get_or_set_event_loop()
         q: asyncio.Queue = asyncio.Queue()
         loop = asyncio.get_running_loop()
 
@@ -269,9 +321,9 @@ async def chat(req: ChatRequest):
             )
 
         def producer():
-            _engine_lock.acquire()  # blocking — waits if idle tick is running
+            sess.lock.acquire()
             try:
-                for snap in _engine.run(
+                for snap in sess.engine.run(
                     req.message,
                     debug_callback=debug_cb if req.debug else None,
                 ):
@@ -280,11 +332,9 @@ async def chat(req: ChatRequest):
                     )
                 asyncio.run_coroutine_threadsafe(q.put(("done", None)), loop)
             except Exception as e:
-                asyncio.run_coroutine_threadsafe(
-                    q.put(("error", str(e))), loop
-                )
+                asyncio.run_coroutine_threadsafe(q.put(("error", str(e))), loop)
             finally:
-                _engine_lock.release()
+                sess.lock.release()
 
         threading.Thread(target=producer, daemon=True).start()
 
@@ -292,37 +342,26 @@ async def chat(req: ChatRequest):
         while True:
             event_type, data = await q.get()
             if event_type == "debug":
-                yield {
-                    "event": "debug",
-                    "data": json.dumps(data),
-                }
+                yield {"event": "debug", "data": json.dumps(data)}
             elif event_type == "tick":
                 if data.get("final_response"):
                     final_response = data["final_response"]
-                yield {
-                    "event": "tick",
-                    "data": json.dumps(data),
-                }
+                yield {"event": "tick", "data": json.dumps(data)}
             elif event_type == "done":
-                yield {
-                    "event": "done",
-                    "data": json.dumps({"final_response": final_response}),
-                }
+                yield {"event": "done", "data": json.dumps({"final_response": final_response})}
                 break
             elif event_type == "error":
-                yield {
-                    "event": "error",
-                    "data": json.dumps({"message": data, "code": "ENGINE_ERROR"}),
-                }
+                yield {"event": "error", "data": json.dumps({"message": data, "code": "ENGINE_ERROR"})}
                 break
 
     return EventSourceResponse(event_generator())
 
 
 @app.delete("/api/session")
-def reset_session():
-    global _engine
-    if _engine_lock.locked():
+def reset_session(x_session_id: str = Header(...)):
+    sess = _get_session(x_session_id)
+    if sess.lock.locked():
         raise HTTPException(status_code=409, detail="Engine is busy.")
-    _engine = None
+    with sess.lock:
+        sess.clear()
     return {"status": "reset"}
