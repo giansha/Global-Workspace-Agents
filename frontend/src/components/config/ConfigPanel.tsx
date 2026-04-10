@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useGWAStore } from '@/store/useGWAStore'
 import { GWAConfig } from '@/lib/types'
+import { DEFAULT_CONFIG } from '@/lib/types'
 import { getConfig, postConfig, deleteSession } from '@/lib/api'
 import { ApiSection } from './ApiSection'
 import { HyperSection } from './HyperSection'
@@ -17,7 +18,7 @@ export function ConfigPanel() {
   const [resetting, setResetting] = useState(false)
 
   useEffect(() => {
-    getConfig().then(setLocalConfig).catch(() => {/* backend not up yet, keep defaults */})
+    getConfig().then(cfg => setLocalConfig({ ...DEFAULT_CONFIG, ...cfg })).catch(() => {/* backend not up yet, keep defaults */})
   }, [])
 
   const handleChange = (patch: Partial<GWAConfig>) => {

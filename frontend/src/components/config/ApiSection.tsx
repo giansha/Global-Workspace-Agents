@@ -26,10 +26,22 @@ export function ApiSection({ config, onChange }: Props) {
         placeholder="sk-..."
       />
       <TextField
-        label="Chat Model"
+        label="Chat Model (default fallback)"
         value={config.chat_model}
         onChange={(e) => onChange({ chat_model: e.target.value })}
         placeholder="gpt-4o"
+      />
+      <TextField
+        label="Low-level Model"
+        value={config.low_level_model}
+        onChange={(e) => onChange({ low_level_model: e.target.value })}
+        placeholder="gpt-4o-mini (leave blank to use Chat Model)"
+      />
+      <TextField
+        label="High-level Model"
+        value={config.high_level_model}
+        onChange={(e) => onChange({ high_level_model: e.target.value })}
+        placeholder="gpt-4o (leave blank to use Chat Model)"
       />
       <TextField
         label="Embedding Model"

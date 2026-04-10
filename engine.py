@@ -57,16 +57,21 @@ class CognitiveEngine:
         self.workspace = GlobalWorkspace(config)
 
         # Instantiate heterogeneous agent swarm
-        _args = dict(
+        _low = dict(
             api_base_url=config.api_base_url,
             api_key=config.api_key,
-            model=config.chat_model,
+            model=config.resolved_low_model,
         )
-        self.attention = AttentionNode(**_args)
-        self.generator = GeneratorNode(**_args)
-        self.critic = CriticNode(**_args)
-        self.meta = MetaNode(**_args)
-        self.response = ResponseNode(**_args)
+        _high = dict(
+            api_base_url=config.api_base_url,
+            api_key=config.api_key,
+            model=config.resolved_high_model,
+        )
+        self.attention = AttentionNode(**_low)
+        self.response  = ResponseNode(**_low)
+        self.generator = GeneratorNode(**_high)
+        self.critic    = CriticNode(**_high)
+        self.meta      = MetaNode(**_high)
 
     # ── Public Entry Point ────────────────────────────────────────────────────
 
@@ -87,6 +92,7 @@ class CognitiveEngine:
         cfg = self.config
 
         ws.current_input = user_input
+        ws.mode = "IDLE" if is_idle else "RESPONDING"
 
         for _ in range(cfg.max_ticks):
             tick = ws.tick
@@ -193,7 +199,7 @@ class CognitiveEngine:
 
                 ws.stm.append(role="Me", content=final_response, tick=tick)
                 if not is_idle:
-                    ws.stm.append(role="user", content=ws.current_input + " [RESOLVED]", tick=tick)
+                    ws.stm.append(role="visitor", content=ws.current_input + " [RESOLVED]", tick=tick)
 
                 self._update_entropy(winning_thought, embedding=winning_embedding)
 
@@ -219,10 +225,6 @@ class CognitiveEngine:
 
             else:  # THINK_MORE
                 ws.stm.append(role="Me", content=winning_thought, tick=tick)
-                ws.current_input = (
-                    ws.current_input
-                    + "\n[PENDING: External environment awaits response]"
-                )
 
                 self._update_entropy(winning_thought, embedding=winning_embedding)
 

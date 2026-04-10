@@ -40,6 +40,7 @@ class GlobalWorkspace:
             entropy_window=config.entropy_window,
         )
 
+        self.mode: str = "IDLE"  # "IDLE" | "RESPONDING"
         self.current_input: str = ""
         self.rag_context: str = ""
         self.last_rag_queries: List[str] = []
@@ -56,15 +57,21 @@ class GlobalWorkspace:
         """
         parts: List[str] = []
 
+        if self.mode == "RESPONDING":
+            status = "CONVERSATION: PENDING — the user is waiting for a reply."
+        else:
+            status = "CONVERSATION: RESOLVED — no pending user input."
+        parts.append(f"=== COGNITIVE STATUS ===\nMODE: {self.mode}\n{status}")
+
         stm_str = self.stm.get_context_string()
         if stm_str:
-            parts.append(f"=== SHORT-TERM MEMORY (STM) ===\n{stm_str}")
+            parts.append(f"=== CURRENT CONVERSATION ===\n{stm_str}") # SHORT-TERM MEMORY (STM)
 
         if self.current_input:
-            parts.append(f"=== CURRENT INPUT (INPUT_t) ===\n{self.current_input}")
+            parts.append(f"=== CURRENT INPUT ===\n{self.current_input}")#  (INPUT_t)
 
         if self.rag_context:
-            parts.append(f"=== RETRIEVED CONTEXT (RAG_t) ===\n{self.rag_context}")
+            parts.append(f"=== MEMORY ===\n{self.rag_context}") # RETRIEVED CONTEXT (RAG_t)
 
         return "\n\n".join(parts)
 

@@ -72,7 +72,7 @@ class SessionState:
 _sessions: dict[str, SessionState] = {}
 _sessions_lock = threading.Lock()
 
-IDLE_PROMPT = "No one is speaking to me right now. I can continue thinking on my own, or reach out and say something to the user."
+IDLE_PROMPT = "No one is speaking to me right now. I can continue thinking on my own, or reach out and say something to the visitor."
 
 
 def _get_session(session_id: str) -> SessionState:
@@ -88,6 +88,8 @@ class ConfigPayload(BaseModel):
     api_base_url: str = "https://api.openai.com/v1"
     api_key: str = ""
     chat_model: str = "gpt-4o"
+    low_level_model: str = ""
+    high_level_model: str = ""
     embedding_model: str = "text-embedding-3-small"
     N: int = 3
     K: int = 5
@@ -166,6 +168,8 @@ def _idle_scheduler_loop():
                     if snap.transition_tag == "RESPONSE":
                         _idle_broadcast(sess, "tick", snap_dict)
                         _idle_broadcast(sess, "done", {"final_response": snap.final_response})
+                # Reset the activity timer so the next idle fires after a full interval.
+                sess.touch()
             except Exception as e:
                 logging.getLogger("gwa.idle").exception("Idle tick error [%s]: %s", sid, e)
             finally:
