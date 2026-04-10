@@ -12,9 +12,12 @@ from typing import List
 from .base import BaseAgent
 
 _SYSTEM_DIRECTIVE = (
-    "Given the current context and the incoming input, identify 1 to 3 specific "
-    "things worth recalling from memory. Output only the recall targets, one per "
-    "line, numbered. No commentary."
+    "Given the current context and the incoming input, identify at most 2 specific "
+    "facts, preferences, or prior decisions worth recalling from long-term memory. "
+    "Each query must be a concrete, answerable question or a precise factual phrase — "
+    "NOT a vague topic or general subject area. "
+    "If nothing specific is worth recalling, output only: none\n"
+    "Otherwise output only the recall targets, one per line, numbered. No commentary."
 )
 
 
@@ -57,4 +60,7 @@ def _parse_queries(raw: str) -> List[str]:
         cleaned = re.sub(r"^[\d]+[.)]\s*|^[-•]\s*", "", line).strip()
         if cleaned:
             queries.append(cleaned)
-    return queries[:3] or [raw.strip()[:200]]
+    # If model replied "none", return empty list (no retrieval needed)
+    if not queries or (len(queries) == 1 and queries[0].lower() == "none"):
+        return []
+    return queries[:2]

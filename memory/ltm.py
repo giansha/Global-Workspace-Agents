@@ -62,6 +62,10 @@ class LongTermMemory:
         )
         return doc_id
 
+    # Cosine distance threshold: distance = 1 - cosine_similarity.
+    # Chunks with distance >= this value are considered irrelevant and discarded.
+    SIMILARITY_THRESHOLD = 0.35
+
     def retrieve(self, query: str, top_k: int = 3) -> List[str]:
         """Retrieve the top-k most semantically similar chunks for a query."""
         if self._collection.count() == 0:
@@ -70,9 +74,12 @@ class LongTermMemory:
         results = self._collection.query(
             query_embeddings=[embedding],
             n_results=min(top_k, self._collection.count()),
-            include=["documents"],
+            include=["documents", "distances"],
         )
-        docs: List[str] = results.get("documents", [[]])[0]
+        docs: List[str] = []
+        for doc, dist in zip(results["documents"][0], results["distances"][0]):
+            if dist < self.SIMILARITY_THRESHOLD:
+                docs.append(doc)
         return docs
 
     def retrieve_multi(self, queries: List[str], top_k: int = 3) -> str:
@@ -88,10 +95,10 @@ class LongTermMemory:
             results = self._collection.query(
                 query_embeddings=[embedding],
                 n_results=n_results,
-                include=["documents"],
+                include=["documents", "distances"],
             )
-            for doc in results.get("documents", [[]])[0]:
-                if doc not in seen:
+            for doc, dist in zip(results["documents"][0], results["distances"][0]):
+                if dist < self.SIMILARITY_THRESHOLD and doc not in seen:
                     seen.add(doc)
                     chunks.append(doc)
         return "\n---\n".join(chunks) if chunks else ""
