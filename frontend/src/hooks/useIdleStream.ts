@@ -7,67 +7,92 @@ import { v4 as uuidv4 } from 'uuid'
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
 
-/**
- * Opens a persistent SSE connection to /api/idle-stream.
- * Feeds tick events into conversation and debug events into the debug panel.
- * Reconnects automatically on disconnect.
- */
+function getSessionId(): string {
+  const KEY = 'gwa_session_id'
+  let id = sessionStorage.getItem(KEY)
+  if (!id) {
+    id = crypto.randomUUID()
+    sessionStorage.setItem(KEY, id)
+  }
+  return id
+}
+
 export function useIdleStream(engineInitialized: boolean) {
   const { addTurn, appendDebugEvent } = useGWAStore()
-  const esRef = useRef<EventSource | null>(null)
+  const abortRef = useRef<AbortController | null>(null)
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     if (!engineInitialized) return
 
     let delay = 1000
+    let cancelled = false
 
-    function connect() {
-      if (esRef.current) {
-        esRef.current.close()
-      }
-
-      const es = new EventSource(`${BASE}/api/idle-stream`)
-      esRef.current = es
+    async function connect() {
+      abortRef.current?.abort()
+      const controller = new AbortController()
+      abortRef.current = controller
 
       const collectedTicks: TickSnapshot[] = []
       let finalResponse = ''
+      let currentEvent = 'message'
+      let buffer = ''
 
-      es.addEventListener('tick', (e) => {
-        try {
-          const snap = JSON.parse(e.data) as TickSnapshot
-          collectedTicks.push(snap)
-          if (snap.final_response) {
-            finalResponse = snap.final_response
+      try {
+        const response = await fetch(`${BASE}/api/idle-stream`, {
+          headers: { 'X-Session-ID': getSessionId() },
+          signal: controller.signal,
+        })
+
+        if (!response.ok || !response.body) throw new Error(`HTTP ${response.status}`)
+
+        const reader = response.body.getReader()
+        const decoder = new TextDecoder()
+
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+          buffer += decoder.decode(value, { stream: true })
+
+          const lines = buffer.split('\n')
+          buffer = lines.pop() ?? ''
+
+          for (const line of lines) {
+            if (line.startsWith('event:')) {
+              currentEvent = line.slice(6).trim()
+            } else if (line.startsWith('data:')) {
+              const raw = line.slice(5).trim()
+              if (!raw) continue
+              try {
+                const payload = JSON.parse(raw)
+                if (currentEvent === 'tick') {
+                  const snap = payload as TickSnapshot
+                  collectedTicks.push(snap)
+                  if (snap.final_response) finalResponse = snap.final_response
+                } else if (currentEvent === 'done') {
+                  if (finalResponse) {
+                    addTurn({
+                      id: uuidv4(),
+                      role: 'assistant',
+                      content: finalResponse,
+                      ticks: [...collectedTicks],
+                    })
+                  }
+                  collectedTicks.length = 0
+                  finalResponse = ''
+                  delay = 1000
+                } else if (currentEvent === 'debug') {
+                  appendDebugEvent(payload)
+                }
+              } catch { /* ignore */ }
+            }
           }
-        } catch { /* ignore */ }
-      })
-
-      es.addEventListener('done', () => {
-        if (finalResponse) {
-          addTurn({
-            id: uuidv4(),
-            role: 'assistant',
-            content: finalResponse,
-            ticks: [...collectedTicks],
-          })
         }
-        // Reset for next idle cycle
-        collectedTicks.length = 0
-        finalResponse = ''
-        delay = 1000  // reset backoff on successful cycle
-      })
+      } catch (err: unknown) {
+        if (err instanceof Error && err.name === 'AbortError') return
+      }
 
-      es.addEventListener('debug', (e) => {
-        try {
-          appendDebugEvent(JSON.parse(e.data))
-        } catch { /* ignore */ }
-      })
-
-      es.onerror = () => {
-        es.close()
-        esRef.current = null
-        // Exponential backoff, max 30s
+      if (!cancelled) {
         reconnectTimer.current = setTimeout(() => {
           delay = Math.min(delay * 2, 30000)
           connect()
@@ -78,8 +103,8 @@ export function useIdleStream(engineInitialized: boolean) {
     connect()
 
     return () => {
-      esRef.current?.close()
-      esRef.current = null
+      cancelled = true
+      abortRef.current?.abort()
       if (reconnectTimer.current) clearTimeout(reconnectTimer.current)
     }
   }, [engineInitialized, addTurn, appendDebugEvent])

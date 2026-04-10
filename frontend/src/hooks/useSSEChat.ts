@@ -39,9 +39,13 @@ export function useSSEChat() {
       let finalResponse = ''
 
       try {
+        const sessionId = sessionStorage.getItem('gwa_session_id') ?? ''
         const response = await fetch(`${BASE}/api/chat`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Session-ID': sessionId,
+          },
           body: JSON.stringify({ message, debug: true }),
         })
 
