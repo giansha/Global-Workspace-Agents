@@ -17,6 +17,12 @@ class GWAConfig:
     chat_model: str = field(
         default_factory=lambda: os.getenv("GWA_CHAT_MODEL", "gpt-4o")
     )
+    low_level_model: str = field(
+        default_factory=lambda: os.getenv("GWA_LOW_LEVEL_MODEL", "")
+    )
+    high_level_model: str = field(
+        default_factory=lambda: os.getenv("GWA_HIGH_LEVEL_MODEL", "")
+    )
     embedding_model: str = field(
         default_factory=lambda: os.getenv("GWA_EMBEDDING_MODEL", "text-embedding-3-small")
     )
@@ -47,3 +53,13 @@ class GWAConfig:
     idle_interval: float = 30.0   # seconds between idle tick cycles
     idle_enabled: bool = False    # whether idle mode starts active on init
     default_language: str = "English"  # language for idle-initiated responses
+
+    @property
+    def resolved_low_model(self) -> str:
+        """Effective model for Attention and Response nodes."""
+        return self.low_level_model or self.chat_model
+
+    @property
+    def resolved_high_model(self) -> str:
+        """Effective model for Generator, Critic, and Meta nodes."""
+        return self.high_level_model or self.chat_model
