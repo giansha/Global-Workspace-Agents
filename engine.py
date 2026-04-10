@@ -168,8 +168,10 @@ class CognitiveEngine:
 
             # 4a. Memory bifurcation if STM exceeds threshold θ
             if ws.stm.token_count() > cfg.theta:
-                summary = self.meta.summarize(ws.stm.get_context_string())
-                ws.ltm.store(ws.stm.get_context_string(), metadata={"type": "stm_archive", "tick": tick})# TODO:这里需要提取知识而不是直接存储原文
+                stm_context = ws.stm.get_context_string()
+                summary = self.meta.summarize(stm_context)
+                knowledge = self.meta.extract_knowledge(stm_context)
+                ws.ltm.store(knowledge, metadata={"type": "knowledge", "tick": tick})
                 ws.stm.compress(summary)
                 compressed = True
 

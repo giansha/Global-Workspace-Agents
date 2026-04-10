@@ -30,6 +30,20 @@ _SUMMARIZE_DIRECTIVE = (
     "full narrative continuity. Output only the summary text."
 )
 
+_EXTRACT_KNOWLEDGE_DIRECTIVE = (
+    "You are a knowledge extractor. Given a cognitive history, extract the durable "
+    "knowledge, experiences, and insights worth remembering long-term. "
+    "Focus on:\n"
+    "- Established facts and conclusions reached\n"
+    "- User preferences, interests, and goals revealed\n"
+    "- Unresolved questions or open problems\n"
+    "- Key decisions made and their rationale\n\n"
+    "Do NOT include transient context, raw conversation turns, or step-by-step "
+    "reasoning chains. Output a concise, self-contained knowledge fragment that "
+    "would be useful if retrieved months later with no other context. "
+    "Output only the knowledge text, no preamble."
+)
+
 
 class MetaNode(BaseAgent):
     """Arbitrates candidates and controls state transition; also handles STM compression."""
@@ -74,6 +88,16 @@ class MetaNode(BaseAgent):
             user_content=f"Cognitive History to Compress:\n{stm_context}",
             temperature=0.3,
             max_tokens=800,
+        )
+        return raw.strip()
+
+    def extract_knowledge(self, stm_context: str) -> str:
+        """Extract durable knowledge fragments from STM history for LTM storage (§3.5)."""
+        raw = self.call(
+            system_directive=_EXTRACT_KNOWLEDGE_DIRECTIVE,
+            user_content=f"Cognitive History:\n{stm_context}",
+            temperature=0.2,
+            max_tokens=600,# TODO: figure out ideal token limit for this
         )
         return raw.strip()
 

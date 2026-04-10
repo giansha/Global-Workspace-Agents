@@ -48,19 +48,19 @@ GWA addresses this by implementing:
 
 ```
                           ┌─────────────────────────────────────┐
-                          │         Global Workspace (STM)       │
-                          │   S_t = STM ∪ INPUT ∪ RAG ∪ P_Self  │
+                          │         Global Workspace (STM)      │
+                          │  S_t = STM ∪ INPUT ∪ RAG ∪ P_Self│
                           └────────────────┬────────────────────┘
-                                           │ broadcast
+                                           ⬆ broadcast/update
                ┌───────────────────────────┼───────────────────────────┐
                ▼                           ▼                           ▼
     ┌──────────────────┐       ┌──────────────────┐       ┌──────────────────┐
     │  Attention Node  │       │  Generator Node  │       │   Critic Node    │
     │  (The Spotlight) │       │ (Divergent, T↑)  │       │ (Convergent, T→0)│
     └────────┬─────────┘       └────────┬─────────┘       └────────┬─────────┘
-             │ RAG queries               │ N candidates              │ scores + critique
-             ▼                           └──────────┬────────────────┘
-        LTM (ChromaDB)                              ▼
+             │ RAG queries              │ N candidates             │ scores + critique
+             ▼                          └──────────┬───────────────┘
+        LTM (ChromaDB)                             ▼
                                        ┌──────────────────┐
                                        │    Meta Node     │
                                        │  (Arbitrator)    │
