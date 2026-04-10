@@ -90,3 +90,17 @@ export const DEFAULT_CONFIG: GWAConfig = {
   idle_enabled: false,
   default_language: 'English',
 }
+
+export interface StmEntry {
+  role: string
+  content: string
+  tick: number
+}
+
+export interface WorkspaceData {
+  stm_entries: StmEntry[]
+  ltm_count: number
+  ltm_last_knowledge: string
+  rag_context: string
+  rag_queries: string[]
+}

@@ -1,4 +1,4 @@
-import { GWAConfig, WorkspaceStats } from './types'
+import { GWAConfig, WorkspaceStats, WorkspaceData } from './types'
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
 
@@ -49,4 +49,9 @@ export async function enableIdle(): Promise<void> {
 
 export async function disableIdle(): Promise<void> {
   await fetch(`${BASE}/api/idle/disable`, { method: 'POST' })
+}
+
+export async function getWorkspace(): Promise<WorkspaceData> {
+  const res = await fetch(`${BASE}/api/workspace`)
+  return res.json()
 }
