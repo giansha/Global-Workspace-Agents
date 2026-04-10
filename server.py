@@ -357,14 +357,22 @@ async def chat(req: ChatRequest, x_session_id: str = Header(...)):
     return EventSourceResponse(event_generator())
 
 
-@app.api_route("/api/session", methods=["DELETE", "POST"])
-def reset_session(x_session_id: Optional[str] = Header(None), session_id: Optional[str] = None):
-    sid = x_session_id or session_id
-    if not sid:
-        raise HTTPException(status_code=422, detail="Session ID required.")
-    sess = _get_session(sid)
+@app.delete("/api/session")
+def reset_session(x_session_id: str = Header(...)):
+    """User-initiated reset: returns 409 if engine is busy."""
+    sess = _get_session(x_session_id)
     if sess.lock.locked():
         raise HTTPException(status_code=409, detail="Engine is busy.")
     with sess.lock:
         sess.clear()
     return {"status": "reset"}
+
+
+@app.post("/api/session/close")
+def close_session(session_id: Optional[str] = None, x_session_id: Optional[str] = Header(None)):
+    """Tab-close beacon: force-clears regardless of lock state."""
+    sid = session_id or x_session_id
+    if not sid:
+        raise HTTPException(status_code=422, detail="Session ID required.")
+    _get_session(sid).clear()
+    return {"status": "closed"}

@@ -19,7 +19,7 @@ export function AppShell() {
     const handleUnload = () => {
       const sid = sessionStorage.getItem('gwa_session_id')
       if (!sid) return
-      navigator.sendBeacon(`${BASE}/api/session?session_id=${encodeURIComponent(sid)}`)
+      navigator.sendBeacon(`${BASE}/api/session/close?session_id=${encodeURIComponent(sid)}`)
     }
     window.addEventListener('beforeunload', handleUnload)
     return () => window.removeEventListener('beforeunload', handleUnload)

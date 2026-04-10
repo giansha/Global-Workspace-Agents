@@ -3,17 +3,18 @@
 import { useEffect, useState } from 'react'
 import { useGWAStore } from '@/store/useGWAStore'
 import { GWAConfig } from '@/lib/types'
-import { getConfig, postConfig } from '@/lib/api'
+import { getConfig, postConfig, deleteSession } from '@/lib/api'
 import { ApiSection } from './ApiSection'
 import { HyperSection } from './HyperSection'
 import { WorkspaceStats } from './WorkspaceStats'
 import { Button } from '@/components/ui/Button'
 
 export function ConfigPanel() {
-  const { config, setConfig, setEngineInitialized, setError } = useGWAStore()
+  const { config, setConfig, setEngineInitialized, setError, clearConversation } = useGWAStore()
   const [localConfig, setLocalConfig] = useState<GWAConfig>(config)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [resetting, setResetting] = useState(false)
 
   useEffect(() => {
     getConfig().then(setLocalConfig).catch(() => {/* backend not up yet, keep defaults */})
@@ -53,8 +54,28 @@ export function ConfigPanel() {
       <HyperSection config={localConfig} onChange={handleChange} />
       <div className="border-t border-[var(--border-subtle)]" />
 
-      <Button onClick={handleSave} disabled={saving} className="w-full">
+      <Button onClick={handleSave} disabled={saving || resetting} className="w-full">
         {saving ? 'Initializing...' : saved ? '✓ Initialized' : 'Save & Initialize'}
+      </Button>
+
+      <Button
+        onClick={async () => {
+          setResetting(true)
+          setError(null)
+          try {
+            await deleteSession()
+            setEngineInitialized(false)
+            clearConversation()
+          } catch (err) {
+            setError(err instanceof Error ? err.message : String(err))
+          } finally {
+            setResetting(false)
+          }
+        }}
+        disabled={saving || resetting}
+        className="w-full opacity-60 hover:opacity-100"
+      >
+        {resetting ? 'Resetting...' : 'Reset Session'}
       </Button>
 
       <div className="border-t border-[var(--border-subtle)]" />
