@@ -2,6 +2,8 @@
 
 # 🧠 Global Workspace Agents (GWA)
 
+### Enabling LLMs to Think Proactively and Initiate Dialogue with Consciousness
+
 ### *"Theater of Mind" for LLMs: A Cognitive Architecture Based on Global Workspace Theory*
 
 [![Paper](https://img.shields.io/badge/Paper-Arxiv%202026-blue?style=flat-square&logo=arxiv)](https://arxiv.org/abs/2604.08206)
