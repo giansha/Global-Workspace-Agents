@@ -53,7 +53,7 @@ export interface WorkspaceStats {
 }
 
 export interface DebugEvent {
-  agent: 'attention' | 'generator' | 'critic' | 'meta'
+  agent: 'attention' | 'generator' | 'critic' | 'meta' | 'response'
   tick: number
   token: string
 }
