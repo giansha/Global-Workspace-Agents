@@ -88,9 +88,9 @@ class ConfigPayload(BaseModel):
     api_base_url: str = "https://api.openai.com/v1"
     api_key: str = ""
     chat_model: str = "gpt-4o"
-    embedding_model: str = "text-embedding-3-small"
     low_level_model: str = ""
     high_level_model: str = ""
+    embedding_model: str = "text-embedding-3-small"
     N: int = 3
     K: int = 5
     T_base: float = 0.7
