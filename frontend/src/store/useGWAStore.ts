@@ -1,7 +1,7 @@
 'use client'
 
 import { create } from 'zustand'
-import { ConversationTurn, DebugEvent, GWAConfig, TickSnapshot, WorkspaceStats, DEFAULT_CONFIG } from '@/lib/types'
+import { ConversationTurn, DebugEvent, GWAConfig, TickSnapshot, WorkspaceStats, WorkspaceData, DEFAULT_CONFIG } from '@/lib/types'
 
 interface GWAStore {
   // Config & engine
@@ -25,6 +25,12 @@ interface GWAStore {
   // Workspace stats (polled)
   stats: WorkspaceStats | null
   setStats: (s: WorkspaceStats) => void
+
+  // Memory panel
+  workspaceData: WorkspaceData | null
+  setWorkspaceData: (d: WorkspaceData) => void
+  memoryPanelOpen: boolean
+  setMemoryPanelOpen: (v: boolean) => void
 
   // Error banner
   error: string | null
@@ -60,6 +66,11 @@ export const useGWAStore = create<GWAStore>((set) => ({
 
   stats: null,
   setStats: (s) => set({ stats: s }),
+
+  workspaceData: null,
+  setWorkspaceData: (d) => set({ workspaceData: d }),
+  memoryPanelOpen: false,
+  setMemoryPanelOpen: (v) => set({ memoryPanelOpen: v }),
 
   error: null,
   setError: (e) => set({ error: e }),
