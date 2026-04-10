@@ -187,6 +187,26 @@ def get_stats():
     }
 
 
+@app.get("/api/workspace")
+def get_workspace():
+    if _engine is None:
+        return {
+            "stm_entries": [],
+            "ltm_count": 0,
+            "ltm_last_knowledge": "",
+            "rag_context": "",
+            "rag_queries": [],
+        }
+    ws = _engine.workspace
+    return {
+        "stm_entries": ws.stm.get_all_entries(),
+        "ltm_count": ws.ltm.count(),
+        "ltm_last_knowledge": ws.last_knowledge,
+        "rag_context": ws.rag_context,
+        "rag_queries": ws.last_rag_queries,
+    }
+
+
 @app.get("/api/idle-stream")
 async def idle_stream():
     """Persistent SSE stream for idle tick events."""
