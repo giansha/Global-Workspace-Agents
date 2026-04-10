@@ -357,9 +357,12 @@ async def chat(req: ChatRequest, x_session_id: str = Header(...)):
     return EventSourceResponse(event_generator())
 
 
-@app.delete("/api/session")
-def reset_session(x_session_id: str = Header(...)):
-    sess = _get_session(x_session_id)
+@app.api_route("/api/session", methods=["DELETE", "POST"])
+def reset_session(x_session_id: Optional[str] = Header(None), session_id: Optional[str] = None):
+    sid = x_session_id or session_id
+    if not sid:
+        raise HTTPException(status_code=422, detail="Session ID required.")
+    sess = _get_session(sid)
     if sess.lock.locked():
         raise HTTPException(status_code=409, detail="Engine is busy.")
     with sess.lock:

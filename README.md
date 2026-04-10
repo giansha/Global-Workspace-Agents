@@ -5,7 +5,7 @@
 ### *"Theater of Mind" for LLMs: A Cognitive Architecture Based on Global Workspace Theory*
 
 [![Paper](https://img.shields.io/badge/Paper-Arxiv%202026-blue?style=flat-square&logo=arxiv)](https://arxiv.org/abs/2604.08206)
-[![Demo](https://img.shields.io/badge/Demo-Live%20Website-green?style=flat-square&logo=vercel)](https://PLACEHOLDER.example.com)
+[![Demo](https://img.shields.io/badge/Demo-GWA%20Website-green?style=flat-square&logo=vercel)](https://giansha.github.io/Global-Workspace-Agents/)
 [![License](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=flat-square&logo=python)](https://www.python.org/)
 [![Next.js](https://img.shields.io/badge/Next.js-14-black?style=flat-square&logo=next.js)](https://nextjs.org/)
