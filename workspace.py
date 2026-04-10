@@ -42,6 +42,8 @@ class GlobalWorkspace:
 
         self.current_input: str = ""
         self.rag_context: str = ""
+        self.last_rag_queries: List[str] = []
+        self.last_knowledge: str = ""
         self.tick: int = 0
 
     # ── State Assembly ────────────────────────────────────────────────────────
