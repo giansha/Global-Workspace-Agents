@@ -57,16 +57,21 @@ class CognitiveEngine:
         self.workspace = GlobalWorkspace(config)
 
         # Instantiate heterogeneous agent swarm
-        _args = dict(
+        _low = dict(
             api_base_url=config.api_base_url,
             api_key=config.api_key,
-            model=config.chat_model,
+            model=config.resolved_low_model,
         )
-        self.attention = AttentionNode(**_args)
-        self.generator = GeneratorNode(**_args)
-        self.critic = CriticNode(**_args)
-        self.meta = MetaNode(**_args)
-        self.response = ResponseNode(**_args)
+        _high = dict(
+            api_base_url=config.api_base_url,
+            api_key=config.api_key,
+            model=config.resolved_high_model,
+        )
+        self.attention = AttentionNode(**_low)
+        self.response  = ResponseNode(**_low)
+        self.generator = GeneratorNode(**_high)
+        self.critic    = CriticNode(**_high)
+        self.meta      = MetaNode(**_high)
 
     # ── Public Entry Point ────────────────────────────────────────────────────
 
