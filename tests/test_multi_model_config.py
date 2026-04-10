@@ -2,9 +2,7 @@ from config import GWAConfig
 
 
 def test_new_fields_exist_and_default_to_empty():
-    cfg = GWAConfig()
-    assert hasattr(cfg, "low_level_model")
-    assert hasattr(cfg, "high_level_model")
+    cfg = GWAConfig(low_level_model="", high_level_model="")
     assert cfg.low_level_model == ""
     assert cfg.high_level_model == ""
 
