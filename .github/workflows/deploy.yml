@@ -1,4 +1,4 @@
-name: Deploy Frontend to GitHub Pages
+name: Deploy
 
 on:
   push:
@@ -54,3 +54,25 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+  sync-hf-space:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Push backend to HF Space
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          git clone https://user:${HF_TOKEN}@huggingface.co/spaces/giant-S/Global-Workspace-Agents hf_repo
+          cp Dockerfile hf_repo/
+          cp requirements.txt requirements_server.txt hf_repo/
+          cp config.py engine.py entropy_drive.py server.py workspace.py hf_repo/
+          cp -r agents memory hf_repo/
+          cd hf_repo
+          git config user.email "ci@github-actions"
+          git config user.name "GitHub Actions"
+          git add -A
+          git diff --cached --quiet || git commit -m "sync from GitHub $(git -C .. rev-parse --short HEAD)"
+          git push
