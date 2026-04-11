@@ -331,6 +331,10 @@ async def chat(req: ChatRequest, x_session_id: str = Header(...)):
             )
 
         def producer():
+            # Cancel any in-flight IDLE tick so we get the lock sooner.
+            # engine.run() resets _stop at the start of each invocation, so this
+            # only affects the idle run — not the user-message run we're about to start.
+            engine_ref.cancel()
             sess.lock.acquire()
             try:
                 # Guard: session may have been cleared while we waited for the lock
