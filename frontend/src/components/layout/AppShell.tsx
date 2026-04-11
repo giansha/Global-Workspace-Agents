@@ -16,13 +16,25 @@ export function AppShell() {
   useIdleStream(engineInitialized)
 
   useEffect(() => {
-    const handleUnload = () => {
+    // Use a flag to prevent double-sending when both beforeunload and pagehide
+    // fire for the same navigation event (they do on desktop Chrome/Firefox).
+    let beaconSent = false
+    const sendClose = () => {
+      if (beaconSent) return
+      beaconSent = true
       const sid = sessionStorage.getItem('gwa_session_id')
       if (!sid) return
       navigator.sendBeacon(`${BASE}/api/session/close?session_id=${encodeURIComponent(sid)}`)
     }
-    window.addEventListener('beforeunload', handleUnload)
-    return () => window.removeEventListener('beforeunload', handleUnload)
+    // beforeunload: fires reliably on desktop browsers for tab close / refresh.
+    // pagehide: fires on mobile browsers where beforeunload is suppressed,
+    //           and also covers bfcache navigations on Safari.
+    window.addEventListener('beforeunload', sendClose)
+    window.addEventListener('pagehide', sendClose)
+    return () => {
+      window.removeEventListener('beforeunload', sendClose)
+      window.removeEventListener('pagehide', sendClose)
+    }
   }, [])
 
   return (

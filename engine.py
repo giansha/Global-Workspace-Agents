@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import time
 import logging
+import threading
 from dataclasses import dataclass, field
 from typing import Generator, List, Optional, Tuple
 
@@ -55,6 +56,7 @@ class CognitiveEngine:
     def __init__(self, config: GWAConfig) -> None:
         self.config = config
         self.workspace = GlobalWorkspace(config)
+        self._stop = threading.Event()
 
         # Instantiate heterogeneous agent swarm
         _low = dict(
@@ -75,6 +77,13 @@ class CognitiveEngine:
 
     # ── Public Entry Point ────────────────────────────────────────────────────
 
+    def cancel(self) -> None:
+        """Signal the running tick loop to stop at the next tick boundary.
+
+        Thread-safe. No-op if no run() is currently active.
+        """
+        self._stop.set()
+
     def run(self, user_input: str, is_idle: bool = False, debug_callback=None) -> Generator[TickSnapshot, None, None]:
         """
         Process one user turn through up to max_ticks cognitive cycles.
@@ -88,6 +97,7 @@ class CognitiveEngine:
                          When provided, each agent streams tokens through this
                          callback so the UI can display real-time agent output.
         """
+        self._stop.clear()  # Reset cancellation flag for this run
         ws = self.workspace
         cfg = self.config
 
@@ -95,6 +105,9 @@ class CognitiveEngine:
         ws.mode = "IDLE" if is_idle else "RESPONDING"
 
         for _ in range(cfg.max_ticks):
+            if self._stop.is_set():
+                logger.info("CognitiveEngine.run() cancelled between ticks")
+                return
             tick = ws.tick
             compressed = False
             _tick_start = time.perf_counter()

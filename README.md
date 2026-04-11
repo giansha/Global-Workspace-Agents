@@ -103,7 +103,7 @@ cd gwt_consciousness_system
 ### 2. Install Python dependencies
 
 ```bash
-C:/ProgramData/anaconda3/envs/agent/python.exe -m pip install -r requirements_server.txt
+python -m pip install -r requirements_server.txt
 ```
 
 ### 3. Install frontend dependencies
@@ -127,7 +127,7 @@ Open **two terminals** from the project root:
 **Terminal 1 — FastAPI backend (port 8000)**
 
 ```bash
-C:/ProgramData/anaconda3/envs/agent/python.exe -m uvicorn server:app --reload --port 8000
+python -m uvicorn server:app --reload --port 8000
 ```
 
 **Terminal 2 — Next.js frontend (port 3000)**
@@ -309,7 +309,7 @@ gwt_consciousness_system/
 ## Running Tests
 
 ```bash
-C:/ProgramData/anaconda3/envs/agent/python.exe -m pytest tests/
+python -m pytest tests/
 ```
 
 ---
