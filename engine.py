@@ -106,8 +106,12 @@ class CognitiveEngine:
 
         for _ in range(cfg.max_ticks):
             if self._stop.is_set():
-                logger.info("CognitiveEngine.run() cancelled between ticks")
+                # Cancelled before this tick started — no STM was written this iteration.
+                logger.info("CognitiveEngine.run() cancelled before tick %d", ws.tick)
                 return
+            # Snapshot STM state so we can roll back if an IDLE tick is interrupted
+            # after its THINK_MORE write (user message arrived mid-tick).
+            stm_snap = ws.stm.snapshot()
             tick = ws.tick
             compressed = False
             _tick_start = time.perf_counter()
@@ -257,6 +261,14 @@ class CognitiveEngine:
                 logger.info("[tick %d] TOTAL:       %.3fs  → THINK_MORE", tick, time.perf_counter() - _tick_start)
                 ws.tick += 1
                 yield snapshot
+
+                # If a user message arrived while this IDLE tick was running, roll back
+                # the THINK_MORE write so the user's request starts from a clean state.
+                if self._stop.is_set():
+                    if is_idle:
+                        ws.stm.rollback_to(*stm_snap)
+                        logger.info("[tick %d] IDLE interrupted — STM rolled back", tick)
+                    return
 
         # Safety: max_ticks exceeded — force a response with the last W_t
         fallback = winning_thought if 'winning_thought' in dir() else "I need more time to process this."

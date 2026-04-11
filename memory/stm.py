@@ -118,6 +118,16 @@ class ShortTermMemory:
         ]
         self._cached_token_count = _count_tokens(compressed_content)
 
+    def snapshot(self) -> tuple[int, int]:
+        """Return a lightweight (entry_count, cached_tokens) snapshot for rollback."""
+        return len(self._entries), self._cached_token_count
+
+    def rollback_to(self, entry_count: int, cached_tokens: int) -> None:
+        """Undo appends back to a prior snapshot (used for IDLE tick cancellation)."""
+        if entry_count < len(self._entries):
+            self._entries = self._entries[:entry_count]
+            self._cached_token_count = cached_tokens
+
     def get_all_entries(self) -> List[Dict[str, Any]]:
         return list(self._entries)
 
