@@ -63,10 +63,12 @@ class SessionState:
     def clear(self):
         """Destroy engine and wipe sensitive config fields."""
         self.idle_enabled = False
+        if self.engine is not None:
+            self.engine.cancel()  # signal any in-flight run() to stop at the next tick boundary
         self.engine = None
         self.config = GWAConfig(api_key="", api_base_url=self.config.api_base_url)
         log = logging.getLogger("gwa.session")
-        log.info("Session cleared due to inactivity.")
+        log.info("Session cleared.")
 
 
 _sessions: dict[str, SessionState] = {}
@@ -319,6 +321,10 @@ async def chat(req: ChatRequest, x_session_id: str = Header(...)):
         q: asyncio.Queue = asyncio.Queue()
         loop = asyncio.get_running_loop()
 
+        # Capture the engine reference at request time so we can cancel it if
+        # the SSE connection drops before or while the producer thread is running.
+        engine_ref = sess.engine
+
         def debug_cb(agent: str, tick: int, token: str):
             asyncio.run_coroutine_threadsafe(
                 q.put(("debug", {"agent": agent, "tick": tick, "token": token})), loop
@@ -327,7 +333,12 @@ async def chat(req: ChatRequest, x_session_id: str = Header(...)):
         def producer():
             sess.lock.acquire()
             try:
-                for snap in sess.engine.run(
+                # Guard: session may have been cleared while we waited for the lock
+                # (e.g. the client refreshed and the beacon arrived in time).
+                if sess.engine is None:
+                    asyncio.run_coroutine_threadsafe(q.put(("done", None)), loop)
+                    return
+                for snap in engine_ref.run(
                     req.message,
                     debug_callback=debug_cb if req.debug else None,
                 ):
@@ -343,20 +354,27 @@ async def chat(req: ChatRequest, x_session_id: str = Header(...)):
         threading.Thread(target=producer, daemon=True).start()
 
         final_response = ""
-        while True:
-            event_type, data = await q.get()
-            if event_type == "debug":
-                yield {"event": "debug", "data": json.dumps(data)}
-            elif event_type == "tick":
-                if data.get("final_response"):
-                    final_response = data["final_response"]
-                yield {"event": "tick", "data": json.dumps(data)}
-            elif event_type == "done":
-                yield {"event": "done", "data": json.dumps({"final_response": final_response})}
-                break
-            elif event_type == "error":
-                yield {"event": "error", "data": json.dumps({"message": data, "code": "ENGINE_ERROR"})}
-                break
+        try:
+            while True:
+                event_type, data = await q.get()
+                if event_type == "debug":
+                    yield {"event": "debug", "data": json.dumps(data)}
+                elif event_type == "tick":
+                    if data.get("final_response"):
+                        final_response = data["final_response"]
+                    yield {"event": "tick", "data": json.dumps(data)}
+                elif event_type == "done":
+                    yield {"event": "done", "data": json.dumps({"final_response": final_response})}
+                    break
+                elif event_type == "error":
+                    yield {"event": "error", "data": json.dumps({"message": data, "code": "ENGINE_ERROR"})}
+                    break
+        except (asyncio.CancelledError, GeneratorExit):
+            # SSE connection was closed by the client (page refresh / tab close).
+            # Cancel the engine so the producer thread stops at the next tick boundary
+            # instead of running all remaining ticks against the LLM API.
+            engine_ref.cancel()
+            raise
 
     return EventSourceResponse(event_generator())
 
