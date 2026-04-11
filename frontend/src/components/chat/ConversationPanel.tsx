@@ -30,6 +30,16 @@ export function ConversationPanel() {
         {conversation.map((turn) => (
           <MessageBubble key={turn.id} turn={turn} />
         ))}
+        {/* Thinking indicator — shown before first tick arrives */}
+        {streaming && currentTicks.length === 0 && (
+          <div className="flex justify-start animate-fade-in">
+            <div className="bg-[var(--bg-surface)] border border-[var(--border-muted)] rounded-xl rounded-bl-sm px-4 py-3 flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-[var(--text-muted)] animate-bounce [animation-delay:-0.3s]" />
+              <span className="w-1.5 h-1.5 rounded-full bg-[var(--text-muted)] animate-bounce [animation-delay:-0.15s]" />
+              <span className="w-1.5 h-1.5 rounded-full bg-[var(--text-muted)] animate-bounce" />
+            </div>
+          </div>
+        )}
         {/* Live tick preview while streaming */}
         {streaming && currentTicks.length > 0 && (
           <div className="flex justify-start animate-fade-in">

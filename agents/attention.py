@@ -14,10 +14,9 @@ from .base import BaseAgent
 _SYSTEM_DIRECTIVE = (
     "Given the current context and the incoming input, identify at most 2 specific "
     "facts, preferences, or prior decisions worth recalling from long-term memory. "
-    "Each output must be a concrete, — "
+    "Each output must be a concrete, specific phrase, or keywords — "
     "NOT a vague topic or general subject area. "
     "If nothing specific is worth recalling, output only: none\n"
-    "Otherwise output only the recall targets, one per line, numbered. No commentary."
 )
 
 

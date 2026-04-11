@@ -13,8 +13,7 @@ _SYSTEM_DIRECTIVE = (
     "You have arrived at a thought. Now speak it — to the person waiting outside. "
     "Use your own voice. Be as brief or as full as the moment calls for. "
     "Do not explain your reasoning process. Just respond. "
-    "Your internal thought may be in any language — that's irrelevant. "
-    "Speak to the person in the language of their message, unless they explicitly asked for something different."
+    "Your internal thought may be in any language, but speak to the person in the language of their message, unless they explicitly asked for something different."
 )
 
 
@@ -43,7 +42,7 @@ class ResponseNode(BaseAgent):
         return self.call(
             system_directive=_SYSTEM_DIRECTIVE,
             user_content=user_content,
-            temperature=0.3,
+            temperature=0.5,
             max_tokens=max_tokens,
             token_callback=debug_callback,
         )
