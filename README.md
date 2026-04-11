@@ -141,7 +141,7 @@ Then open [http://localhost:3000](http://localhost:3000), configure your API key
 
 > **Alternative (legacy Streamlit UI)**
 > ```bash
-> C:/ProgramData/anaconda3/envs/agent/Scripts/streamlit.exe run app.py
+> streamlit run app.py
 > ```
 
 ---
