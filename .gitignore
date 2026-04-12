@@ -187,3 +187,5 @@ chroma_db/
 docs/
 tests/
 hf_space/
+.gitnexus
+AGENTS.md
