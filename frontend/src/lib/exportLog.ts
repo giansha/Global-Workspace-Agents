@@ -7,20 +7,19 @@ function pad2(n: number): string {
   return String(n).padStart(2, '0')
 }
 
-function timestamp(): string {
+function formatDate(separator: { date: string; time: string; between: string }): string {
   const d = new Date()
-  return (
-    `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ` +
-    `${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`
-  )
+  const date = `${d.getFullYear()}${separator.date}${pad2(d.getMonth() + 1)}${separator.date}${pad2(d.getDate())}`
+  const time = `${pad2(d.getHours())}${separator.time}${pad2(d.getMinutes())}${separator.time}${pad2(d.getSeconds())}`
+  return `${date}${separator.between}${time}`
+}
+
+function timestamp(): string {
+  return formatDate({ date: '-', time: ':', between: ' ' })
 }
 
 function filenameTimestamp(): string {
-  const d = new Date()
-  return (
-    `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}_` +
-    `${pad2(d.getHours())}-${pad2(d.getMinutes())}-${pad2(d.getSeconds())}`
-  )
+  return formatDate({ date: '-', time: '-', between: '_' })
 }
 
 function formatTick(snap: ConversationTurn['ticks'][number]): string {
@@ -47,7 +46,7 @@ function formatTick(snap: ConversationTurn['ticks'][number]): string {
 
   lines.push('Candidates:')
   snap.candidates.forEach((candidate, i) => {
-    const [score, critique] = snap.evaluations[i] ?? [0, '']
+    const [score, critique] = snap.evaluations[i] ?? [0, '(missing)']
     lines.push(`  [${i + 1}] score=${score}`)
     lines.push(`      ${candidate}`)
     lines.push(`      Critique: ${critique}`)
@@ -152,5 +151,5 @@ export function downloadLog(
   a.href = url
   a.download = `gwa-log-${filenameTimestamp()}.txt`
   a.click()
-  URL.revokeObjectURL(url)
+  setTimeout(() => URL.revokeObjectURL(url), 60_000)
 }
