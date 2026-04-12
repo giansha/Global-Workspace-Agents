@@ -2,6 +2,7 @@
 
 import { useGWAStore } from '@/store/useGWAStore'
 import { enableIdle, disableIdle } from '@/lib/api'
+import { downloadLog } from '@/lib/exportLog'
 
 export function DebugToggleBar() {
   const {
@@ -9,7 +10,12 @@ export function DebugToggleBar() {
     engineInitialized,
     idleEnabled, setIdleEnabled,
     memoryPanelOpen, setMemoryPanelOpen,
+    conversation, workspaceData,
   } = useGWAStore()
+
+  const handleExportLog = () => {
+    downloadLog(conversation, workspaceData)
+  }
 
   const handleIdleToggle = async () => {
     if (idleEnabled) {
@@ -23,6 +29,14 @@ export function DebugToggleBar() {
 
   return (
     <div className="h-8 px-4 flex items-center justify-end border-b border-[var(--border-subtle)] bg-[var(--bg-surface)] shrink-0 gap-4">
+      <button
+        onClick={handleExportLog}
+        className="flex items-center gap-1.5 text-[10px] font-mono tracking-widest uppercase transition-colors cursor-pointer mr-auto"
+        style={{ color: 'var(--text-muted)' }}
+      >
+        <span>↓</span>
+        <span>EXPORT LOG</span>
+      </button>
       <button
         onClick={() => setMemoryPanelOpen(!memoryPanelOpen)}
         disabled={!engineInitialized}
