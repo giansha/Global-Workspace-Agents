@@ -43,6 +43,8 @@ class TickSnapshot:
     stm_token_count: int
     compressed: bool = False
     final_response: Optional[str] = None  # set when tag == RESPONSE
+    critic_raw: str = ""                  # raw Critic agent output
+    meta_raw: str = ""                    # raw Meta agent output (includes RATIONALE)
 
 
 class CognitiveEngine:
@@ -165,6 +167,7 @@ class CognitiveEngine:
                 debug_callback=make_cb("critic", tick),
                 max_tokens=cfg.critic_max_tokens,
             )
+            critic_raw = getattr(self.critic, "last_raw", "")
             logger.info("[tick %d] critic:      %.3fs", tick, time.perf_counter() - _t)
 
             # ── Phase 3: Arbitrate ────────────────────────────────────────────
@@ -176,6 +179,7 @@ class CognitiveEngine:
                 debug_callback=make_cb("meta", tick),
                 max_tokens=cfg.meta_max_tokens,
             )
+            meta_raw = getattr(self.meta, "last_raw", "")
             logger.info("[tick %d] meta:        %.3fs", tick, time.perf_counter() - _t)
 
             # ── Phase 4: Update ───────────────────────────────────────────────
@@ -233,6 +237,8 @@ class CognitiveEngine:
                     stm_token_count=ws.stm.token_count(),
                     compressed=compressed,
                     final_response=final_response,
+                    critic_raw=critic_raw,
+                    meta_raw=meta_raw,
                 )
                 logger.info("[tick %d] TOTAL:       %.3fs  → RESPONSE", tick, time.perf_counter() - _tick_start)
                 ws.reset_input()
@@ -257,6 +263,8 @@ class CognitiveEngine:
                     transition_tag=tag,
                     stm_token_count=ws.stm.token_count(),
                     compressed=compressed,
+                    critic_raw=critic_raw,
+                    meta_raw=meta_raw,
                 )
                 logger.info("[tick %d] TOTAL:       %.3fs  → THINK_MORE", tick, time.perf_counter() - _tick_start)
                 ws.tick += 1

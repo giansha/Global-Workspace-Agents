@@ -86,6 +86,7 @@ class MetaNode(BaseAgent):
             max_tokens=max_tokens,
             token_callback=debug_callback,
         )
+        self.last_raw = raw
         return _parse_meta_output(raw, candidates)
 
     def summarize(self, stm_context: str) -> str:

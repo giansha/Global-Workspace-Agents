@@ -13,7 +13,7 @@ _SYSTEM_DIRECTIVE = (
     "You have arrived at a thought. Now speak it — to the person waiting outside. "
     "Use your own voice. Be as brief or as full as the moment calls for. "
     "Do not explain your reasoning process. Just respond. "
-    "Your internal thought may be in any language, but speak to the person in the language of their message, unless they explicitly asked for something different."
+    "Your internal thought may be in any language, **but speak to the person in the language of their message, unless they explicitly asked for something different or No incoming message.**"
 )
 
 
@@ -33,7 +33,7 @@ class ResponseNode(BaseAgent):
             context_tail = f"Person's message: {user_message}"
         else:
             lang = default_language or "English"
-            context_tail = f"(No incoming message — you are initiating. Speak in {lang}.)"
+            context_tail = f"(No incoming message — you are talking to yourself. **Speak in {lang}.**)"
         user_content = (
             f"Your internal thought:\n{winning_thought}\n\n"
             f"Conversation so far:\n{stm_context}\n\n"

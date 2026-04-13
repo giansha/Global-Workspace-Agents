@@ -49,6 +49,7 @@ class CriticNode(BaseAgent):
             max_tokens=max_tokens,
             token_callback=debug_callback,
         )
+        self.last_raw = raw
         return _parse_evaluations(raw, len(candidates))
 
 
