@@ -27,7 +27,7 @@ class CriticNode(BaseAgent):
         self,
         state_string: str,
         candidates: List[str],
-        temperature: float = 0.1,
+        temperature: float = 0.3,
         debug_callback=None,
         max_tokens: int = 1024,
     ) -> List[Tuple[int, str]]:
@@ -49,6 +49,7 @@ class CriticNode(BaseAgent):
             max_tokens=max_tokens,
             token_callback=debug_callback,
         )
+        self.last_raw = raw
         return _parse_evaluations(raw, len(candidates))
 
 

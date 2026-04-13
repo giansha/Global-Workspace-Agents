@@ -42,7 +42,7 @@ app.add_middleware(
     allow_headers=["*", "X-Session-ID"],
 )
 
-SESSION_INACTIVITY_TIMEOUT: float = 10 * 60  # 10 minutes
+SESSION_HEARTBEAT_TIMEOUT: float = 90  # seconds — 3 missed heartbeats @ 30s interval
 
 # ── Per-session state ────────────────────────────────────────────────────────
 
@@ -55,6 +55,7 @@ class SessionState:
         self.idle_subscribers: list[asyncio.Queue] = []
         self.idle_subscribers_lock = threading.Lock()
         self.last_activity: float = time.time()
+        self.last_heartbeat: float = time.time()
         self.event_loop: asyncio.AbstractEventLoop | None = None
 
     def touch(self):
@@ -74,8 +75,7 @@ class SessionState:
 _sessions: dict[str, SessionState] = {}
 _sessions_lock = threading.Lock()
 
-IDLE_PROMPT = "No one is speaking to me right now. I can continue thinking on my own, or reach out and say something to the visitor."
-
+#IDLE_PROMPT = "No one is speaking to me right now. I can continue thinking on my own, or reach out and say something to the visitor."
 
 def _get_session(session_id: str) -> SessionState:
     with _sessions_lock:
@@ -160,15 +160,15 @@ def _idle_scheduler_loop():
 
             try:
                 for snap in sess.engine.run(
-                    IDLE_PROMPT,
+                    "", # IDLE_PROMPT
                     is_idle=True,
                     debug_callback=lambda agent, tick, token: _idle_broadcast(
                         sess, "debug", {"agent": agent, "tick": tick, "token": token}
                     ),
                 ):
                     snap_dict = dataclasses.asdict(snap)
+                    _idle_broadcast(sess, "tick", snap_dict)
                     if snap.transition_tag == "RESPONSE":
-                        _idle_broadcast(sess, "tick", snap_dict)
                         _idle_broadcast(sess, "done", {"final_response": snap.final_response})
                 # Reset the activity timer so the next idle fires after a full interval.
                 sess.touch()
@@ -179,14 +179,14 @@ def _idle_scheduler_loop():
 
 
 def _inactivity_cleanup_loop():
-    """Background daemon: clears sessions inactive for SESSION_INACTIVITY_TIMEOUT."""
+    """Background daemon: clears sessions whose frontend heartbeat has timed out."""
     while True:
         time.sleep(60)
         now = time.time()
         with _sessions_lock:
             expired = [
                 sid for sid, sess in _sessions.items()
-                if sess.engine is not None and now - sess.last_activity > SESSION_INACTIVITY_TIMEOUT
+                if sess.engine is not None and now - sess.last_heartbeat > SESSION_HEARTBEAT_TIMEOUT
             ]
         for sid in expired:
             sess = _sessions.get(sid)
@@ -402,3 +402,10 @@ def close_session(session_id: Optional[str] = None, x_session_id: Optional[str] 
         raise HTTPException(status_code=422, detail="Session ID required.")
     _get_session(sid).clear()
     return {"status": "closed"}
+
+
+@app.post("/api/heartbeat")
+def heartbeat(x_session_id: str = Header(...)):
+    """Frontend liveness ping — sent every 30 s while the page is open."""
+    _get_session(x_session_id).last_heartbeat = time.time()
+    return {"ok": True}

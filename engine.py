@@ -43,6 +43,8 @@ class TickSnapshot:
     stm_token_count: int
     compressed: bool = False
     final_response: Optional[str] = None  # set when tag == RESPONSE
+    critic_raw: str = ""                  # raw Critic agent output
+    meta_raw: str = ""                    # raw Meta agent output (includes RATIONALE)
 
 
 class CognitiveEngine:
@@ -133,6 +135,8 @@ class CognitiveEngine:
                 max_tokens=cfg.attention_max_tokens,
             )
             logger.info("[tick %d] attention:    %.3fs", tick, time.perf_counter() - _t)
+            if self._stop.is_set():
+                return
 
             _t = time.perf_counter()
             rag_context = ws.ltm.retrieve_multi(rag_queries, top_k=cfg.top_k_rag)
@@ -156,6 +160,8 @@ class CognitiveEngine:
                 max_tokens=cfg.generator_max_tokens,
             )
             logger.info("[tick %d] generator:   %.3fs", tick, time.perf_counter() - _t)
+            if self._stop.is_set():
+                return
 
             _t = time.perf_counter()
             evaluations = self.critic.run(
@@ -165,7 +171,10 @@ class CognitiveEngine:
                 debug_callback=make_cb("critic", tick),
                 max_tokens=cfg.critic_max_tokens,
             )
+            critic_raw = getattr(self.critic, "last_raw", "")
             logger.info("[tick %d] critic:      %.3fs", tick, time.perf_counter() - _t)
+            if self._stop.is_set():
+                return
 
             # ── Phase 3: Arbitrate ────────────────────────────────────────────
             _t = time.perf_counter()
@@ -176,7 +185,10 @@ class CognitiveEngine:
                 debug_callback=make_cb("meta", tick),
                 max_tokens=cfg.meta_max_tokens,
             )
+            meta_raw = getattr(self.meta, "last_raw", "")
             logger.info("[tick %d] meta:        %.3fs", tick, time.perf_counter() - _t)
+            if self._stop.is_set():
+                return
 
             # ── Phase 4: Update ───────────────────────────────────────────────
             # Pre-embed W_t now (single API call); reused by both entropy drive
@@ -233,6 +245,8 @@ class CognitiveEngine:
                     stm_token_count=ws.stm.token_count(),
                     compressed=compressed,
                     final_response=final_response,
+                    critic_raw=critic_raw,
+                    meta_raw=meta_raw,
                 )
                 logger.info("[tick %d] TOTAL:       %.3fs  → RESPONSE", tick, time.perf_counter() - _tick_start)
                 ws.reset_input()
@@ -257,6 +271,8 @@ class CognitiveEngine:
                     transition_tag=tag,
                     stm_token_count=ws.stm.token_count(),
                     compressed=compressed,
+                    critic_raw=critic_raw,
+                    meta_raw=meta_raw,
                 )
                 logger.info("[tick %d] TOTAL:       %.3fs  → THINK_MORE", tick, time.perf_counter() - _tick_start)
                 ws.tick += 1
@@ -270,22 +286,33 @@ class CognitiveEngine:
                         logger.info("[tick %d] IDLE interrupted — STM rolled back", tick)
                     return
 
-        # Safety: max_ticks exceeded — force a response with the last W_t
-        fallback = winning_thought if 'winning_thought' in dir() else "I need more time to process this."
-        ws.stm.append(role="Me", content=fallback, tick=ws.tick)
+        # Safety: max_ticks exceeded — force a response with the last W_t via ResponseNode
+        fallback_thought = winning_thought if 'winning_thought' in locals() else "I need more time to process this."
+        final_tick = ws.tick
+        final_response = self.response.run(
+            winning_thought=fallback_thought,
+            stm_context=ws.stm.get_context_string(),
+            user_message="" if is_idle else ws.current_input,
+            default_language=cfg.default_language if is_idle else None,
+            debug_callback=make_cb("response", final_tick),
+            max_tokens=cfg.response_max_tokens,
+        )
+        ws.stm.append(role="Me", content=final_response, tick=final_tick)
+        if not is_idle:
+            ws.stm.append(role="visitor", content=ws.current_input + " [RESOLVED]", tick=final_tick)
         ws.reset_input()
         yield TickSnapshot(
-            tick=ws.tick,
+            tick=final_tick,
             rag_queries=[],
             rag_context="",
             entropy=ws.entropy_drive.last_entropy,
             T_gen=ws.entropy_drive.last_T_gen,
             candidates=[],
             evaluations=[],
-            winning_thought=fallback,
+            winning_thought=fallback_thought,
             transition_tag="RESPONSE",
             stm_token_count=ws.stm.token_count(),
-            final_response=fallback,
+            final_response=final_response,
         )
 
     # ── Internal ──────────────────────────────────────────────────────────────

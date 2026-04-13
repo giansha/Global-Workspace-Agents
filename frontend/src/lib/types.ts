@@ -11,6 +11,8 @@ export interface TickSnapshot {
   stm_token_count: number
   compressed: boolean
   final_response: string | null
+  critic_raw?: string
+  meta_raw?: string
 }
 
 export interface GWAConfig {

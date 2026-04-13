@@ -53,9 +53,21 @@ function formatTick(snap: ConversationTurn['ticks'][number]): string {
     lines.push('')
   })
 
+  if (snap.critic_raw) {
+    lines.push('Critic Output (full):')
+    lines.push(snap.critic_raw)
+    lines.push('')
+  }
+
   lines.push('Winning Thought:')
   lines.push(snap.winning_thought)
   lines.push('')
+
+  if (snap.meta_raw) {
+    lines.push('Meta Output (full):')
+    lines.push(snap.meta_raw)
+    lines.push('')
+  }
 
   if (snap.transition_tag === 'RESPONSE' && snap.final_response !== null) {
     lines.push('Final Response:')

@@ -190,3 +190,4 @@ tests/
 hf_space/
 .gitnexus
 AGENTS.md
+.markdownlint.json

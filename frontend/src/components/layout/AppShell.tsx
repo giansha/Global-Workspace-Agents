@@ -37,6 +37,24 @@ export function AppShell() {
     }
   }, [])
 
+  useEffect(() => {
+    // Only start heartbeat after engine is initialized — at that point
+    // gwa_session_id is guaranteed to exist in sessionStorage.
+    if (!engineInitialized) return
+    const sid = sessionStorage.getItem('gwa_session_id')
+    if (!sid) return
+    const tick = () => {
+      fetch(`${BASE}/api/heartbeat`, {
+        method: 'POST',
+        headers: { 'X-Session-ID': sid },
+        keepalive: true,
+      }).catch(() => {})
+    }
+    tick() // immediate first ping
+    const id = setInterval(tick, 30_000)
+    return () => clearInterval(id)
+  }, [engineInitialized])
+
   return (
     <div className="flex h-full bg-[var(--bg-base)]">
       <Sidebar />

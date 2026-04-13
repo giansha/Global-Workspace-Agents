@@ -10,10 +10,12 @@ from __future__ import annotations
 from .base import BaseAgent
 
 _SYSTEM_DIRECTIVE = (
-    "You have arrived at a thought. Now speak it — to the person waiting outside. "
+    "You have arrived at a thought. Now speak it, this is your chance to share your perspective, "
     "Use your own voice. Be as brief or as full as the moment calls for. "
     "Do not explain your reasoning process. Just respond. "
-    "Your internal thought may be in any language, but speak to the person in the language of their message, unless they explicitly asked for something different."
+    "Your internal thought may be in any language, "
+    "**but speak to the person in the language of their message, "
+    "unless they explicitly asked for something different or No incoming message.**"
 )
 
 
@@ -30,19 +32,19 @@ class ResponseNode(BaseAgent):
         max_tokens: int = 512,
     ) -> str:
         if user_message:
-            context_tail = f"Person's message: {user_message}"
+            context_tail = f"The person's message: {user_message}"
         else:
             lang = default_language or "English"
-            context_tail = f"(No incoming message — you are initiating. Speak in {lang}.)"
+            context_tail = f"(No incoming message — you are talking to yourself. **Speak in {lang}.**)"
         user_content = (
             f"Your internal thought:\n{winning_thought}\n\n"
-            f"Conversation so far:\n{stm_context}\n\n"
+            # f"Conversation so far:\n{stm_context}\n\n"
             f"{context_tail}"
         )
         return self.call(
             system_directive=_SYSTEM_DIRECTIVE,
             user_content=user_content,
-            temperature=0.5,
+            temperature=0.4,
             max_tokens=max_tokens,
             token_callback=debug_callback,
         )
