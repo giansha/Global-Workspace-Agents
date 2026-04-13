@@ -135,6 +135,8 @@ class CognitiveEngine:
                 max_tokens=cfg.attention_max_tokens,
             )
             logger.info("[tick %d] attention:    %.3fs", tick, time.perf_counter() - _t)
+            if self._stop.is_set():
+                return
 
             _t = time.perf_counter()
             rag_context = ws.ltm.retrieve_multi(rag_queries, top_k=cfg.top_k_rag)
@@ -158,6 +160,8 @@ class CognitiveEngine:
                 max_tokens=cfg.generator_max_tokens,
             )
             logger.info("[tick %d] generator:   %.3fs", tick, time.perf_counter() - _t)
+            if self._stop.is_set():
+                return
 
             _t = time.perf_counter()
             evaluations = self.critic.run(
@@ -169,6 +173,8 @@ class CognitiveEngine:
             )
             critic_raw = getattr(self.critic, "last_raw", "")
             logger.info("[tick %d] critic:      %.3fs", tick, time.perf_counter() - _t)
+            if self._stop.is_set():
+                return
 
             # ── Phase 3: Arbitrate ────────────────────────────────────────────
             _t = time.perf_counter()
@@ -181,6 +187,8 @@ class CognitiveEngine:
             )
             meta_raw = getattr(self.meta, "last_raw", "")
             logger.info("[tick %d] meta:        %.3fs", tick, time.perf_counter() - _t)
+            if self._stop.is_set():
+                return
 
             # ── Phase 4: Update ───────────────────────────────────────────────
             # Pre-embed W_t now (single API call); reused by both entropy drive
