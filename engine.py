@@ -286,22 +286,33 @@ class CognitiveEngine:
                         logger.info("[tick %d] IDLE interrupted — STM rolled back", tick)
                     return
 
-        # Safety: max_ticks exceeded — force a response with the last W_t
-        fallback = winning_thought if 'winning_thought' in dir() else "I need more time to process this."
-        ws.stm.append(role="Me", content=fallback, tick=ws.tick)
+        # Safety: max_ticks exceeded — force a response with the last W_t via ResponseNode
+        fallback_thought = winning_thought if 'winning_thought' in locals() else "I need more time to process this."
+        final_tick = ws.tick
+        final_response = self.response.run(
+            winning_thought=fallback_thought,
+            stm_context=ws.stm.get_context_string(),
+            user_message="" if is_idle else ws.current_input,
+            default_language=cfg.default_language if is_idle else None,
+            debug_callback=make_cb("response", final_tick),
+            max_tokens=cfg.response_max_tokens,
+        )
+        ws.stm.append(role="Me", content=final_response, tick=final_tick)
+        if not is_idle:
+            ws.stm.append(role="visitor", content=ws.current_input + " [RESOLVED]", tick=final_tick)
         ws.reset_input()
         yield TickSnapshot(
-            tick=ws.tick,
+            tick=final_tick,
             rag_queries=[],
             rag_context="",
             entropy=ws.entropy_drive.last_entropy,
             T_gen=ws.entropy_drive.last_T_gen,
             candidates=[],
             evaluations=[],
-            winning_thought=fallback,
+            winning_thought=fallback_thought,
             transition_tag="RESPONSE",
             stm_token_count=ws.stm.token_count(),
-            final_response=fallback,
+            final_response=final_response,
         )
 
     # ── Internal ──────────────────────────────────────────────────────────────
