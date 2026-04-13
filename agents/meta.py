@@ -35,7 +35,9 @@ _SUMMARIZE_DIRECTIVE = (
     "Synthesize a dense, coherent summary of the conversation history below. "
     "Preserve all key decisions, unresolved threads, and important conclusions. "
     "It should be substantially shorter than the original while maintaining "
-    "full narrative continuity. Output only the summary text."
+    "full narrative continuity. "
+    "Retain greater detail for recent history and progressively compress earlier content. "
+    "Output only the summary text."
 )
 
 _EXTRACT_KNOWLEDGE_DIRECTIVE = (
