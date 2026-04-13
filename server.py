@@ -74,8 +74,7 @@ class SessionState:
 _sessions: dict[str, SessionState] = {}
 _sessions_lock = threading.Lock()
 
-IDLE_PROMPT = "No one is speaking to me right now. I can continue thinking on my own, or reach out and say something to the visitor."
-
+#IDLE_PROMPT = "No one is speaking to me right now. I can continue thinking on my own, or reach out and say something to the visitor."
 
 def _get_session(session_id: str) -> SessionState:
     with _sessions_lock:
@@ -160,7 +159,7 @@ def _idle_scheduler_loop():
 
             try:
                 for snap in sess.engine.run(
-                    IDLE_PROMPT,
+                    "", # IDLE_PROMPT
                     is_idle=True,
                     debug_callback=lambda agent, tick, token: _idle_broadcast(
                         sess, "debug", {"agent": agent, "tick": tick, "token": token}
