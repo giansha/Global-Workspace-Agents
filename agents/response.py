@@ -32,13 +32,13 @@ class ResponseNode(BaseAgent):
         max_tokens: int = 512,
     ) -> str:
         if user_message:
-            context_tail = f"Person's message: {user_message}"
+            context_tail = f"The person's message: {user_message}"
         else:
             lang = default_language or "English"
             context_tail = f"(No incoming message — you are talking to yourself. **Speak in {lang}.**)"
         user_content = (
             f"Your internal thought:\n{winning_thought}\n\n"
-            f"Conversation so far:\n{stm_context}\n\n"
+            # f"Conversation so far:\n{stm_context}\n\n"
             f"{context_tail}"
         )
         return self.call(
