@@ -166,8 +166,8 @@ def _idle_scheduler_loop():
                     ),
                 ):
                     snap_dict = dataclasses.asdict(snap)
+                    _idle_broadcast(sess, "tick", snap_dict)
                     if snap.transition_tag == "RESPONSE":
-                        _idle_broadcast(sess, "tick", snap_dict)
                         _idle_broadcast(sess, "done", {"final_response": snap.final_response})
                 # Reset the activity timer so the next idle fires after a full interval.
                 sess.touch()
