@@ -11,7 +11,7 @@ import { WorkspaceStats } from './WorkspaceStats'
 import { Button } from '@/components/ui/Button'
 
 export function ConfigPanel() {
-  const { config, setConfig, setEngineInitialized, setError, clearConversation } = useGWAStore()
+  const { config, setConfig, setEngineInitialized, setError, clearConversation, clearDebugEvents } = useGWAStore()
   const [localConfig, setLocalConfig] = useState<GWAConfig>(config)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -67,6 +67,7 @@ export function ConfigPanel() {
             await deleteSession()
             setEngineInitialized(false)
             clearConversation()
+            clearDebugEvents()
           } catch (err) {
             setError(err instanceof Error ? err.message : String(err))
           } finally {
