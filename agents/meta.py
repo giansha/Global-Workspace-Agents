@@ -15,19 +15,23 @@ from .base import BaseAgent
 
 _SYSTEM_DIRECTIVE = (
     "Given these perspectives and their assessments, which feels most true, "
-    "complete, and worth expressing? Select it and decide: is this ready to "
-    "respond to the person outside, or does it need more thought?\n\n"
+    "complete, and worth expressing? Select it and decide the next action.\n\n"
     "Refer to COGNITIVE STATUS in the context before deciding the transition tag:\n"
     "- If MODE is \"RESPONDING\": the visitor is waiting for a reply. Prefer [RESPONSE] "
     "when the winning thought is complete and directly addresses their need.\n"
-    "- If MODE is \"IDLE\": no one is waiting. Check STM — if the last visitor message "
-    "carries [RESOLVED], you have already replied to that message; if STM contains "
+    "- If MODE is \"IDLE\": no one is waiting. Check memory — if the last visitor message "
+    "carries [RESOLVED], you have already replied to that message; if memory contains "
     "no visitor messages, no one has spoken to you yet. In either sub-case, "
-    "You are free to autonomously decide whether to [THINK_MORE] or [RESPONSE]. "
-    "Consider the context and your own judgment to determine the best next action.\n\n"
+    "you are free to autonomously decide the best next action.\n\n"
+    "Transition options:\n"
+    "- [RESPONSE]: the winning thought is complete and ready to share with the visitor.\n"
+    "- [THINK_MORE]: the thought needs further internal development before responding.\n"
+    "- [WEB_SEARCH]: the winning thought requires external real-time information to "
+    "proceed (current events, specific data, unknown facts). Do not choose this for "
+    "information already present in memory.\n\n"
     "Output format:\n"
     "WINNING THOUGHT: \"!!N!!\", where N is the number of the selected perspective\n"
-    "TRANSITION: \"[RESPONSE]\" or \"[THINK_MORE]\"\n"
+    "TRANSITION: \"[RESPONSE]\" or \"[THINK_MORE]\" or \"[WEB_SEARCH]\"\n"
     "RATIONALE: [1-2 sentences]"
 )
 
@@ -115,10 +119,12 @@ class MetaNode(BaseAgent):
 
 def _parse_meta_output(raw: str, candidates: List[str]) -> Tuple[str, str]:
     """Extract winning thought and transition tag from Meta output."""
-    # Extract tag
+    # Extract tag — check WEB_SEARCH before THINK_MORE to avoid false negatives
     tag = "THINK_MORE"
     if re.search(r"\[RESPONSE\]", raw, re.IGNORECASE):
         tag = "RESPONSE"
+    elif re.search(r"\[WEB_SEARCH\]", raw, re.IGNORECASE):
+        tag = "WEB_SEARCH"
     elif re.search(r"\[THINK_MORE\]", raw, re.IGNORECASE):
         tag = "THINK_MORE"
 
