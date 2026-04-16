@@ -5,7 +5,7 @@ export interface TickSnapshot {
   entropy: number
   T_gen: number
   candidates: string[]
-  evaluations: [number, string][]
+  evaluations: string[]
   winning_thought: string
   transition_tag: 'THINK_MORE' | 'RESPONSE' | 'WEB_SEARCH'
   stm_token_count: number

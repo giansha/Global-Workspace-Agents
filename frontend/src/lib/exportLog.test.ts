@@ -14,7 +14,7 @@ const mockTurn: ConversationTurn = {
       entropy: 0.8234,
       T_gen: 1.23,
       candidates: ['thought A full text', 'thought B full text', 'thought C full text'],
-      evaluations: [[8, 'Strong reasoning'], [6, 'Acceptable but vague'], [4, 'Off-topic']],
+      evaluations: ['Strong reasoning', 'Acceptable but vague', 'Off-topic'],
       winning_thought: 'thought A full text',
       transition_tag: 'THINK_MORE',
       stm_token_count: 412,
@@ -28,7 +28,7 @@ const mockTurn: ConversationTurn = {
       entropy: 0.5100,
       T_gen: 0.97,
       candidates: ['response thought full text'],
-      evaluations: [[9, 'Clear and complete']],
+      evaluations: ['Clear and complete'],
       winning_thought: 'response thought full text',
       transition_tag: 'RESPONSE',
       stm_token_count: 598,
@@ -89,15 +89,14 @@ describe('formatLog', () => {
     expect(log).toContain('Consciousness is a state of awareness...')
   })
 
-  it('includes all candidates with scores and critiques', () => {
+  it('includes all candidates with critiques', () => {
     const log = formatLog([mockUserTurn, mockTurn], null)
     expect(log).toContain('thought A full text')
     expect(log).toContain('thought B full text')
     expect(log).toContain('thought C full text')
-    expect(log).toContain('score=8')
     expect(log).toContain('Strong reasoning')
-    expect(log).toContain('score=6')
-    expect(log).toContain('score=4')
+    expect(log).toContain('Acceptable but vague')
+    expect(log).toContain('Off-topic')
   })
 
   it('includes winning thought', () => {

@@ -9,7 +9,7 @@ Also used for STM compression (summarization) during memory bifurcation (§3.5).
 from __future__ import annotations
 
 import re
-from typing import List, Tuple
+from typing import List
 
 from .base import BaseAgent
 
@@ -66,7 +66,7 @@ class MetaNode(BaseAgent):
         self,
         state_string: str,
         candidates: List[str],
-        evaluations: List[Tuple[int, str]],
+        evaluations: List[str],
         debug_callback=None,
         max_tokens: int = 1024,
     ) -> Tuple[str, str]:
@@ -77,8 +77,8 @@ class MetaNode(BaseAgent):
         """
         numbered_candidates = "\n".join(f"{i+1}. {c}" for i, c in enumerate(candidates))
         numbered_evals = "\n".join(
-            f"{i+1}. Score: {score} | Critique: {critique}"
-            for i, (score, critique) in enumerate(evaluations)
+            f"{i+1}. Critique: {critique}"
+            for i, critique in enumerate(evaluations)
         )
         user_content = (
             f"Current context:\n{state_string}\n\n"

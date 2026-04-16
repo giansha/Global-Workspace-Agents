@@ -15,7 +15,7 @@ import time
 import logging
 import threading
 from dataclasses import dataclass, field
-from typing import Generator, List, Optional, Tuple
+from typing import Generator, List, Optional
 
 logger = logging.getLogger("gwa.timing")
 
@@ -39,7 +39,7 @@ class TickSnapshot:
     entropy: float
     T_gen: float
     candidates: List[str]
-    evaluations: List[Tuple[int, str]]   # (score, critique) per candidate
+    evaluations: List[str]               # critique per candidate
     winning_thought: str
     transition_tag: str                  # "THINK_MORE" or "RESPONSE"
     stm_token_count: int
