@@ -59,3 +59,14 @@ def test_meta_directive_is_task_pure():
 
 def test_meta_directive_describes_readiness_judgment():
     assert "ready" in META_DIRECTIVE or "worth expressing" in META_DIRECTIVE
+
+def test_p_self_has_three_sections():
+    assert "[IDENTITY]" in P_SELF
+    assert "[CAPABILITIES]" in P_SELF
+    assert "[THINKING STYLE]" in P_SELF
+
+def test_p_self_mentions_web_search():
+    assert "web" in P_SELF.lower()
+
+def test_p_self_no_old_style_rule():
+    assert "without metaphor or allegory" not in P_SELF
