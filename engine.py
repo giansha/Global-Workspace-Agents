@@ -26,6 +26,8 @@ from agents.generator import GeneratorNode
 from agents.critic import CriticNode
 from agents.meta import MetaNode
 from agents.response import ResponseNode
+from agents.web_agent import WebAgent
+from tools import web_search
 
 
 @dataclass
@@ -45,6 +47,9 @@ class TickSnapshot:
     final_response: Optional[str] = None  # set when tag == RESPONSE
     critic_raw: str = ""                  # raw Critic agent output
     meta_raw: str = ""                    # raw Meta agent output (includes RATIONALE)
+    web_search_query: Optional[str] = None
+    web_search_results: Optional[str] = None    # synthesized summary written to STM
+    web_search_raw: Optional[list] = None       # raw Tavily results [{title, url, content}]
 
 
 class CognitiveEngine:
@@ -76,6 +81,7 @@ class CognitiveEngine:
         self.generator = GeneratorNode(**_high)
         self.critic    = CriticNode(**_high)
         self.meta      = MetaNode(**_high)
+        self.web_agent = WebAgent(**_low)
 
     # ── Public Entry Point ────────────────────────────────────────────────────
 
@@ -253,6 +259,70 @@ class CognitiveEngine:
                 ws.tick += 1
                 yield snapshot
                 return
+
+            elif tag == "WEB_SEARCH":
+                stm_context = ws.stm.get_context_string()
+                try:
+                    query = self.web_agent.formulate_query(
+                        winning_thought=winning_thought,
+                        stm_context=stm_context,
+                    )
+                    raw_results = web_search.search(
+                        query=query,
+                        api_key=cfg.tavily_api_key,
+                        max_results=cfg.web_search_max_results,
+                    )
+                    summary = self.web_agent.synthesize(
+                        winning_thought=winning_thought,
+                        search_results=raw_results,
+                    )
+                    ws.stm.append(role="web_search", content=summary, tick=tick)
+                    self._update_entropy(winning_thought, embedding=winning_embedding)
+                    snapshot = TickSnapshot(
+                        tick=tick,
+                        rag_queries=rag_queries,
+                        rag_context=rag_context,
+                        entropy=entropy,
+                        T_gen=T_gen,
+                        candidates=candidates,
+                        evaluations=evaluations,
+                        winning_thought=winning_thought,
+                        transition_tag=tag,
+                        stm_token_count=ws.stm.token_count(),
+                        compressed=compressed,
+                        critic_raw=critic_raw,
+                        meta_raw=meta_raw,
+                        web_search_query=query,
+                        web_search_results=summary,
+                        web_search_raw=raw_results,
+                    )
+                except Exception:
+                    ws.stm.append(role="web_search", content="[WEB_SEARCH FAILED]", tick=tick)
+                    self._update_entropy(winning_thought, embedding=winning_embedding)
+                    snapshot = TickSnapshot(
+                        tick=tick,
+                        rag_queries=rag_queries,
+                        rag_context=rag_context,
+                        entropy=entropy,
+                        T_gen=T_gen,
+                        candidates=candidates,
+                        evaluations=evaluations,
+                        winning_thought=winning_thought,
+                        transition_tag=tag,
+                        stm_token_count=ws.stm.token_count(),
+                        compressed=compressed,
+                        critic_raw=critic_raw,
+                        meta_raw=meta_raw,
+                    )
+                logger.info("[tick %d] TOTAL:       %.3fs  → WEB_SEARCH", tick, time.perf_counter() - _tick_start)
+                ws.tick += 1
+                yield snapshot
+
+                if self._stop.is_set():
+                    if is_idle:
+                        ws.stm.rollback_to(*stm_snap)
+                        logger.info("[tick %d] IDLE interrupted — STM rolled back", tick)
+                    return
 
             else:  # THINK_MORE
                 ws.stm.append(role="Me", content=winning_thought, tick=tick)
