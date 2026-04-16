@@ -29,10 +29,11 @@ export function ScoreBadge({ score }: { score: number }) {
   return <Badge variant={variant}>{label}</Badge>
 }
 
-export function TagBadge({ tag }: { tag: 'THINK_MORE' | 'RESPONSE' }) {
+export function TagBadge({ tag }: { tag: 'THINK_MORE' | 'RESPONSE' | 'WEB_SEARCH' }) {
+  const variant = tag === 'RESPONSE' ? 'response' : tag === 'WEB_SEARCH' ? 'cyan' : 'think'
   return (
-    <Badge variant={tag === 'RESPONSE' ? 'response' : 'think'}>
-      {tag === 'RESPONSE' ? 'RESPONSE' : 'THINK_MORE'}
+    <Badge variant={variant}>
+      {tag}
     </Badge>
   )
 }

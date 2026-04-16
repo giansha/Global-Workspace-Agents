@@ -7,12 +7,15 @@ export interface TickSnapshot {
   candidates: string[]
   evaluations: [number, string][]
   winning_thought: string
-  transition_tag: 'THINK_MORE' | 'RESPONSE'
+  transition_tag: 'THINK_MORE' | 'RESPONSE' | 'WEB_SEARCH'
   stm_token_count: number
   compressed: boolean
   final_response: string | null
   critic_raw?: string
   meta_raw?: string
+  web_search_query?: string
+  web_search_results?: string
+  web_search_raw?: Array<{ title: string; url: string; content: string }>
 }
 
 export interface GWAConfig {
@@ -43,6 +46,8 @@ export interface GWAConfig {
   idle_interval: number
   idle_enabled: boolean
   default_language: string
+  tavily_api_key: string
+  web_search_max_results: number
 }
 
 export interface WorkspaceStats {
@@ -95,6 +100,8 @@ export const DEFAULT_CONFIG: GWAConfig = {
   idle_interval: 30,
   idle_enabled: false,
   default_language: 'English',
+  tavily_api_key: '',
+  web_search_max_results: 3,
 }
 
 export interface StmEntry {
