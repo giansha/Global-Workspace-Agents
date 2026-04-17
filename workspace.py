@@ -46,6 +46,7 @@ class GlobalWorkspace:
         self.last_rag_queries: List[str] = []
         self.last_knowledge: str = ""
         self.tick: int = 0
+        self.first_real_user_seen: bool = False
 
     # ── State Assembly ────────────────────────────────────────────────────────
 

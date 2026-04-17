@@ -21,7 +21,10 @@ _SYSTEM_DIRECTIVE = (
     "Just say what the thought says, in plain spoken language, "
     "no longer than the moment needs. "
     "Speak in the language of the person's message, "
-    "unless they asked for something different or there is no incoming message."
+    "unless they asked for something different or there is no incoming message. "
+    "Match their register too: if they write briefly, casually, or with "
+    "compressed spelling (e.g., 'u', 'dont'), you reply in kind — short "
+    "and plain. Do not out-articulate them."
 )
 
 

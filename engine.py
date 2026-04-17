@@ -112,6 +112,21 @@ class CognitiveEngine:
         ws.current_input = user_input
         ws.mode = "IDLE" if is_idle else "RESPONDING"
 
+        if not is_idle and not ws.first_real_user_seen:
+            ws.stm.append(
+                role="system",
+                content=(
+                    "[FRAME SHIFT] A real person is now addressing you through an interface. "
+                    "Any prior scene in memory is seed context, not a present person. "
+                    "From here on, 'visitor' messages come from this real person."
+                ),
+                tick=ws.tick,
+            )
+            ws.first_real_user_seen = True
+
+        if not is_idle:
+            ws.entropy_drive.reset_centers()
+
         for _ in range(cfg.max_ticks):
             if self._stop.is_set():
                 # Cancelled before this tick started — no STM was written this iteration.
