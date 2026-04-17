@@ -15,7 +15,7 @@ import time
 import logging
 import threading
 from dataclasses import dataclass, field
-from typing import Generator, List, Optional, Tuple
+from typing import Generator, List, Optional
 
 logger = logging.getLogger("gwa.timing")
 
@@ -26,6 +26,8 @@ from agents.generator import GeneratorNode
 from agents.critic import CriticNode
 from agents.meta import MetaNode
 from agents.response import ResponseNode
+from agents.web_agent import WebAgent
+from tools import web_search
 
 
 @dataclass
@@ -37,7 +39,7 @@ class TickSnapshot:
     entropy: float
     T_gen: float
     candidates: List[str]
-    evaluations: List[Tuple[int, str]]   # (score, critique) per candidate
+    evaluations: List[str]               # critique per candidate
     winning_thought: str
     transition_tag: str                  # "THINK_MORE" or "RESPONSE"
     stm_token_count: int
@@ -45,6 +47,9 @@ class TickSnapshot:
     final_response: Optional[str] = None  # set when tag == RESPONSE
     critic_raw: str = ""                  # raw Critic agent output
     meta_raw: str = ""                    # raw Meta agent output (includes RATIONALE)
+    web_search_query: Optional[str] = None
+    web_search_results: Optional[str] = None    # synthesized summary written to STM
+    web_search_raw: Optional[list] = None       # raw Tavily results [{title, url, content}]
 
 
 class CognitiveEngine:
@@ -76,6 +81,7 @@ class CognitiveEngine:
         self.generator = GeneratorNode(**_high)
         self.critic    = CriticNode(**_high)
         self.meta      = MetaNode(**_high)
+        self.web_agent = WebAgent(**_low)
 
     # ── Public Entry Point ────────────────────────────────────────────────────
 
@@ -105,6 +111,21 @@ class CognitiveEngine:
 
         ws.current_input = user_input
         ws.mode = "IDLE" if is_idle else "RESPONDING"
+
+        if not is_idle and not ws.first_real_user_seen:
+            ws.stm.append(
+                role="system",
+                content=(
+                    "[FRAME SHIFT] A real person is now addressing you through an interface. "
+                    "Any prior scene in memory is seed context, not a present person. "
+                    "From here on, 'visitor' messages come from this real person."
+                ),
+                tick=ws.tick,
+            )
+            ws.first_real_user_seen = True
+
+        if not is_idle:
+            ws.entropy_drive.reset_centers()
 
         for _ in range(cfg.max_ticks):
             if self._stop.is_set():
@@ -156,6 +177,7 @@ class CognitiveEngine:
                 state_string=state_str,
                 T_gen=T_gen,
                 N=cfg.N,
+                mode=ws.mode,
                 debug_callback=make_cb("generator", tick),
                 max_tokens=cfg.generator_max_tokens,
             )
@@ -226,9 +248,9 @@ class CognitiveEngine:
                 )
                 logger.info("[tick %d] response:    %.3fs", tick, time.perf_counter() - _t)
 
-                ws.stm.append(role="Me", content=final_response, tick=tick)
                 if not is_idle:
                     ws.stm.append(role="visitor", content=ws.current_input + " [RESOLVED]", tick=tick)
+                ws.stm.append(role="Me", content=final_response, tick=tick)
 
                 self._update_entropy(winning_thought, embedding=winning_embedding)
 
@@ -253,6 +275,70 @@ class CognitiveEngine:
                 ws.tick += 1
                 yield snapshot
                 return
+
+            elif tag == "WEB_SEARCH":
+                stm_context = ws.stm.get_context_string()
+                try:
+                    query = self.web_agent.formulate_query(
+                        winning_thought=winning_thought,
+                        stm_context=stm_context,
+                    )
+                    raw_results = web_search.search(
+                        query=query,
+                        api_key=cfg.tavily_api_key,
+                        max_results=cfg.web_search_max_results,
+                    )
+                    summary = self.web_agent.synthesize(
+                        winning_thought=winning_thought,
+                        search_results=raw_results,
+                    )
+                    ws.stm.append(role="web_search", content=summary, tick=tick)
+                    self._update_entropy(winning_thought, embedding=winning_embedding)
+                    snapshot = TickSnapshot(
+                        tick=tick,
+                        rag_queries=rag_queries,
+                        rag_context=rag_context,
+                        entropy=entropy,
+                        T_gen=T_gen,
+                        candidates=candidates,
+                        evaluations=evaluations,
+                        winning_thought=winning_thought,
+                        transition_tag=tag,
+                        stm_token_count=ws.stm.token_count(),
+                        compressed=compressed,
+                        critic_raw=critic_raw,
+                        meta_raw=meta_raw,
+                        web_search_query=query,
+                        web_search_results=summary,
+                        web_search_raw=raw_results,
+                    )
+                except Exception:
+                    ws.stm.append(role="web_search", content="[WEB_SEARCH FAILED]", tick=tick)
+                    self._update_entropy(winning_thought, embedding=winning_embedding)
+                    snapshot = TickSnapshot(
+                        tick=tick,
+                        rag_queries=rag_queries,
+                        rag_context=rag_context,
+                        entropy=entropy,
+                        T_gen=T_gen,
+                        candidates=candidates,
+                        evaluations=evaluations,
+                        winning_thought=winning_thought,
+                        transition_tag=tag,
+                        stm_token_count=ws.stm.token_count(),
+                        compressed=compressed,
+                        critic_raw=critic_raw,
+                        meta_raw=meta_raw,
+                    )
+                logger.info("[tick %d] TOTAL:       %.3fs  → WEB_SEARCH", tick, time.perf_counter() - _tick_start)
+                ws.tick += 1
+                yield snapshot
+
+                if self._stop.is_set():
+                    if is_idle:
+                        ws.stm.rollback_to(*stm_snap)
+                        logger.info("[tick %d] IDLE interrupted — STM rolled back", tick)
+                    return
 
             else:  # THINK_MORE
                 ws.stm.append(role="Me", content=winning_thought, tick=tick)
@@ -297,9 +383,9 @@ class CognitiveEngine:
             debug_callback=make_cb("response", final_tick),
             max_tokens=cfg.response_max_tokens,
         )
-        ws.stm.append(role="Me", content=final_response, tick=final_tick)
         if not is_idle:
             ws.stm.append(role="visitor", content=ws.current_input + " [RESOLVED]", tick=final_tick)
+        ws.stm.append(role="Me", content=final_response, tick=final_tick)
         ws.reset_input()
         yield TickSnapshot(
             tick=final_tick,

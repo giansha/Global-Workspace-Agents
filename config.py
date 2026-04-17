@@ -27,6 +27,12 @@ class GWAConfig:
         default_factory=lambda: os.getenv("GWA_EMBEDDING_MODEL", "text-embedding-3-small")
     )
 
+    # ── Web Search ────────────────────────────────────────────────────────────
+    tavily_api_key: str = field(
+        default_factory=lambda: os.getenv("TAVILY_API_KEY", "")
+    )
+    web_search_max_results: int = 3
+
     # ── Hyperparameters (§3.3–3.5) ───────────────────────────────────────────
     N: int = 3                  # number of Generator candidate thoughts
     K: int = 5                  # semantic clusters for Shannon entropy

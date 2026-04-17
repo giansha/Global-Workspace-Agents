@@ -33,6 +33,8 @@ export function LiveStatePanel() {
             className={`text-[9px] font-mono px-1.5 py-0.5 rounded border ${
               tag === 'RESPONSE'
                 ? 'bg-[var(--accent-secondary)]/15 text-[var(--accent-secondary)] border-[var(--accent-secondary)]/30'
+                : tag === 'WEB_SEARCH'
+                ? 'bg-[var(--accent-cyan)]/15 text-[var(--accent-cyan)] border-[var(--accent-cyan)]/30'
                 : 'bg-[var(--accent-warning)]/15 text-[var(--accent-warning)] border-[var(--accent-warning)]/30'
             }`}
           >

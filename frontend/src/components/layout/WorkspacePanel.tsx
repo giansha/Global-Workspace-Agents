@@ -5,7 +5,7 @@ import { useGWAStore } from '@/store/useGWAStore'
 import { getWorkspace } from '@/lib/api'
 
 export function WorkspacePanel() {
-  const { memoryPanelOpen, workspaceData, setWorkspaceData } = useGWAStore()
+  const { memoryPanelOpen, workspaceData, setWorkspaceData, currentTicks, conversation } = useGWAStore()
 
   useEffect(() => {
     if (!memoryPanelOpen) return
@@ -19,6 +19,16 @@ export function WorkspacePanel() {
   }, [memoryPanelOpen, setWorkspaceData])
 
   if (!memoryPanelOpen) return null
+
+  const allTicks = [
+    ...currentTicks,
+    ...conversation.flatMap((turn) => turn.ticks),
+  ]
+  const lastWebSearchTick = [...allTicks].reverse().find(
+    (t) => t.transition_tag === 'WEB_SEARCH' && t.web_search_raw && t.web_search_raw.length > 0
+  )
+  const webSearchResults = lastWebSearchTick?.web_search_raw ?? []
+  const webSearchQuery = lastWebSearchTick?.web_search_query ?? ''
 
   const stm = workspaceData?.stm_entries ?? []
   const ltmCount = workspaceData?.ltm_count ?? 0
@@ -85,7 +95,7 @@ export function WorkspacePanel() {
       </div>
 
       {/* RAG Column */}
-      <div className="flex-1 min-w-0 flex flex-col">
+      <div className="flex-1 min-w-0 flex flex-col border-r border-[var(--border-subtle)]">
         <div className="px-3 py-1.5 border-b border-[var(--border-subtle)] shrink-0">
           <span className="text-[10px] font-mono font-semibold tracking-widest uppercase text-[var(--text-muted)]">
             RAG
@@ -112,6 +122,43 @@ export function WorkspacePanel() {
             </div>
           ) : (
             <span className="text-[10px] text-[var(--text-muted)] italic">—</span>
+          )}
+        </div>
+      </div>
+
+      {/* WEB SEARCH Column */}
+      <div className="w-64 shrink-0 flex flex-col">
+        <div className="px-3 py-1.5 border-b border-[var(--border-subtle)] shrink-0">
+          <span className="text-[10px] font-mono font-semibold tracking-widest uppercase text-[var(--text-muted)]">
+            Web Search
+          </span>
+        </div>
+        <div className="overflow-y-auto flex-1 p-2 flex flex-col gap-2">
+          {webSearchQuery && (
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[9px] font-mono text-[var(--text-muted)] uppercase tracking-wider">Query</span>
+              <span className="text-[10px] font-mono text-[var(--accent-cyan)] break-all">{webSearchQuery}</span>
+            </div>
+          )}
+          {webSearchResults.length === 0 ? (
+            <span className="text-[10px] text-[var(--text-muted)] italic">—</span>
+          ) : (
+            webSearchResults.map((r, i) => (
+              <div key={i} className="flex flex-col gap-0.5 border-b border-[var(--border-subtle)] pb-1.5 last:border-0">
+                <span className="text-[10px] font-mono text-[var(--text-primary)] leading-tight">{r.title}</span>
+                <a
+                  href={r.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[9px] font-mono text-[var(--accent-primary)] hover:underline truncate block"
+                >
+                  {r.url.length > 50 ? r.url.slice(0, 50) + '…' : r.url}
+                </a>
+                <span className="text-[10px] text-[var(--text-muted)] font-mono whitespace-pre-wrap break-all leading-relaxed">
+                  {r.content.slice(0, 200)}{r.content.length > 200 ? '…' : ''}
+                </span>
+              </div>
+            ))
           )}
         </div>
       </div>

@@ -80,6 +80,13 @@ class EntropyDrive:
 
     # ── Internal ──────────────────────────────────────────────────────────────
 
+    def reset_centers(self) -> None:
+        """Clear cluster centers so the next thought re-seeds the distribution.
+        Call when an external disruption (new user message) arrives and current
+        centers no longer represent relevant attractors."""
+        self._centers = None
+        self._last_embedding = None
+
     def _update_centers(self, h: np.ndarray) -> None:
         """Online EMA update of cluster centers."""
         if self._centers is None:

@@ -114,6 +114,8 @@ class ConfigPayload(BaseModel):
     idle_interval: float = 30.0
     idle_enabled: bool = False
     default_language: str = "English"
+    tavily_api_key: str = ""
+    web_search_max_results: int = 3
 
 
 class ChatRequest(BaseModel):

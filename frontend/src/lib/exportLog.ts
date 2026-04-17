@@ -46,9 +46,8 @@ function formatTick(snap: ConversationTurn['ticks'][number]): string {
 
   lines.push('Candidates:')
   snap.candidates.forEach((candidate, i) => {
-    const [score, critique] = snap.evaluations[i] ?? [0, '(missing)']
-    lines.push(`  [${i + 1}] score=${score}`)
-    lines.push(`      ${candidate}`)
+    const critique = snap.evaluations[i] ?? '(missing)'
+    lines.push(`  [${i + 1}] ${candidate}`)
     lines.push(`      Critique: ${critique}`)
     lines.push('')
   })

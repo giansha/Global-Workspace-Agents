@@ -49,6 +49,21 @@ export function ApiSection({ config, onChange }: Props) {
         onChange={(e) => onChange({ embedding_model: e.target.value })}
         placeholder="text-embedding-3-small"
       />
+      <p className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider mt-2">Web Search</p>
+      <TextField
+        label="Tavily API Key"
+        type="password"
+        value={config.tavily_api_key}
+        onChange={(e) => onChange({ tavily_api_key: e.target.value })}
+        placeholder="tvly-..."
+      />
+      <TextField
+        label="Max Results"
+        type="number"
+        value={String(config.web_search_max_results)}
+        onChange={(e) => onChange({ web_search_max_results: Number(e.target.value) })}
+        placeholder="3"
+      />
     </div>
   )
 }

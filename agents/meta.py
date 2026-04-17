@@ -9,25 +9,38 @@ Also used for STM compression (summarization) during memory bifurcation (§3.5).
 from __future__ import annotations
 
 import re
-from typing import List, Tuple
+from typing import List
 
 from .base import BaseAgent
 
 _SYSTEM_DIRECTIVE = (
     "Given these perspectives and their assessments, which feels most true, "
-    "complete, and worth expressing? Select it and decide: is this ready to "
-    "respond to the person outside, or does it need more thought?\n\n"
+    "complete, and worth expressing? Select it and decide the next action.\n\n"
     "Refer to COGNITIVE STATUS in the context before deciding the transition tag:\n"
     "- If MODE is \"RESPONDING\": the visitor is waiting for a reply. Prefer [RESPONSE] "
     "when the winning thought is complete and directly addresses their need.\n"
-    "- If MODE is \"IDLE\": no one is waiting. Check STM — if the last visitor message "
-    "carries [RESOLVED], you have already replied to that message; if STM contains "
-    "no visitor messages, no one has spoken to you yet. In either sub-case, "
-    "You are free to autonomously decide whether to [THINK_MORE] or [RESPONSE]. "
-    "Consider the context and your own judgment to determine the best next action.\n\n"
+    "- If MODE is \"IDLE\": no one is waiting for a reply. Most thoughts should stay "
+    "internal — prefer [THINK_MORE] unless the winning thought is something you would "
+    "genuinely say out loud to someone nearby. [RESPONSE] in IDLE means you are "
+    "initiating: speaking first, breaking a silence, reaching toward someone. "
+    "Only choose [RESPONSE] if the thought has that quality — a question, an observation "
+    "worth sharing, something that opens rather than closes. "
+    "A thought that is merely complete or interesting does not qualify.\n\n"
+    "AVOID DRIFT: If a candidate primarily discusses thinking itself, "
+    "performance, persona, role-playing, made-up history, or the act of "
+    "speaking — these are drift markers. Prefer a candidate that engages "
+    "something external and concrete (a person, object, event, fact), "
+    "even if it feels less sophisticated. Self-referential cleverness "
+    "is almost always the wrong choice.\n\n"
+    "Transition options:\n"
+    "- [RESPONSE]: the winning thought is complete and ready to share with the visitor.\n"
+    "- [THINK_MORE]: the thought needs further internal development before responding.\n"
+    "- [WEB_SEARCH]: the winning thought requires external real-time information to "
+    "proceed (current events, specific data, unknown facts). Do not choose this for "
+    "information already present in memory.\n\n"
     "Output format:\n"
     "WINNING THOUGHT: \"!!N!!\", where N is the number of the selected perspective\n"
-    "TRANSITION: \"[RESPONSE]\" or \"[THINK_MORE]\"\n"
+    "TRANSITION: \"[RESPONSE]\" or \"[THINK_MORE]\" or \"[WEB_SEARCH]\"\n"
     "RATIONALE: [1-2 sentences]"
 )
 
@@ -62,7 +75,7 @@ class MetaNode(BaseAgent):
         self,
         state_string: str,
         candidates: List[str],
-        evaluations: List[Tuple[int, str]],
+        evaluations: List[str],
         debug_callback=None,
         max_tokens: int = 1024,
     ) -> Tuple[str, str]:
@@ -73,8 +86,8 @@ class MetaNode(BaseAgent):
         """
         numbered_candidates = "\n".join(f"{i+1}. {c}" for i, c in enumerate(candidates))
         numbered_evals = "\n".join(
-            f"{i+1}. Score: {score} | Critique: {critique}"
-            for i, (score, critique) in enumerate(evaluations)
+            f"{i+1}. Critique: {critique}"
+            for i, critique in enumerate(evaluations)
         )
         user_content = (
             f"Current context:\n{state_string}\n\n"
@@ -115,10 +128,12 @@ class MetaNode(BaseAgent):
 
 def _parse_meta_output(raw: str, candidates: List[str]) -> Tuple[str, str]:
     """Extract winning thought and transition tag from Meta output."""
-    # Extract tag
+    # Extract tag — check WEB_SEARCH before THINK_MORE to avoid false negatives
     tag = "THINK_MORE"
     if re.search(r"\[RESPONSE\]", raw, re.IGNORECASE):
         tag = "RESPONSE"
+    elif re.search(r"\[WEB_SEARCH\]", raw, re.IGNORECASE):
+        tag = "WEB_SEARCH"
     elif re.search(r"\[THINK_MORE\]", raw, re.IGNORECASE):
         tag = "THINK_MORE"
 
