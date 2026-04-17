@@ -162,6 +162,7 @@ class CognitiveEngine:
                 state_string=state_str,
                 T_gen=T_gen,
                 N=cfg.N,
+                mode=ws.mode,
                 debug_callback=make_cb("generator", tick),
                 max_tokens=cfg.generator_max_tokens,
             )
@@ -232,9 +233,9 @@ class CognitiveEngine:
                 )
                 logger.info("[tick %d] response:    %.3fs", tick, time.perf_counter() - _t)
 
-                ws.stm.append(role="Me", content=final_response, tick=tick)
                 if not is_idle:
                     ws.stm.append(role="visitor", content=ws.current_input + " [RESOLVED]", tick=tick)
+                ws.stm.append(role="Me", content=final_response, tick=tick)
 
                 self._update_entropy(winning_thought, embedding=winning_embedding)
 
@@ -367,9 +368,9 @@ class CognitiveEngine:
             debug_callback=make_cb("response", final_tick),
             max_tokens=cfg.response_max_tokens,
         )
-        ws.stm.append(role="Me", content=final_response, tick=final_tick)
         if not is_idle:
             ws.stm.append(role="visitor", content=ws.current_input + " [RESOLVED]", tick=final_tick)
+        ws.stm.append(role="Me", content=final_response, tick=final_tick)
         ws.reset_input()
         yield TickSnapshot(
             tick=final_tick,

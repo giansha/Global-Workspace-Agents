@@ -12,9 +12,19 @@ from typing import List
 from .base import BaseAgent
 
 
-def _build_system_directive(N: int) -> str:
+def _build_system_directive(N: int, mode: str = "RESPONDING") -> str:
+    if mode == "IDLE":
+        return (
+            f"You are present in this situation right now. Generate {N} distinct thoughts — "
+            "what you notice, what you're drawn to, what you're wondering, what you might say. "
+            "At least one thought should involve the person nearby, if there is one: "
+            "whether to speak, what to ask, what the silence feels like. "
+            "Each thought must be self-contained and genuinely felt, not analytical. "
+            "Contrasting or even contradictory thoughts are valuable. "
+            "Output as a numbered list. No meta-commentary."
+        )
     return (
-        f"Consider the situation from {N} distinct angles, each angle's content must be self-contained."
+        f"Consider the situation from {N} distinct angles, each angle's content must be self-contained. "
         "Think freely — "
         "contrasting or even contradictory perspectives are valuable. "
         "Output as a numbered list. No meta-commentary."
@@ -24,7 +34,7 @@ def _build_system_directive(N: int) -> str:
 class GeneratorNode(BaseAgent):
     """Produces N divergent candidate thoughts at a dynamically set temperature."""
 
-    def run(self, state_string: str, T_gen: float, N: int, debug_callback=None, max_tokens: int = 1024) -> List[str]:
+    def run(self, state_string: str, T_gen: float, N: int, mode: str = "RESPONDING", debug_callback=None, max_tokens: int = 1024) -> List[str]:
         """
         Parameters
         ----------
@@ -42,7 +52,7 @@ class GeneratorNode(BaseAgent):
             "I will now generate the numbered candidate thoughts."
         )
         raw = self.call(
-            system_directive=_build_system_directive(N),
+            system_directive=_build_system_directive(N, mode),
             user_content=user_content,
             temperature=min(max(T_gen, 0.0), 2.0),
             max_tokens=max_tokens,
