@@ -69,7 +69,7 @@ jobs:
           cp Dockerfile hf_repo/
           cp requirements.txt requirements_server.txt hf_repo/
           cp config.py engine.py entropy_drive.py server.py workspace.py hf_repo/
-          cp -r agents memory hf_repo/
+          cp -r agents memory tools hf_repo/
           cd hf_repo
           git config user.email "ci@github-actions"
           git config user.name "GitHub Actions"
